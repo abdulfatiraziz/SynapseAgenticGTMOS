@@ -1,0 +1,119 @@
+name: Agent Quality Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/agents/**'
+      - 'src/lib/tools/**'
+      - 'src/lib/evaluation/**'
+      - 'src/lib/orchestration/**'
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  structural-eval:
+    name: 🧪 Structural Quality Gate (All PRs)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: synapse-app
+
+      - name: Run structural eval suite
+        working-directory: synapse-app
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          npx tsx src/scripts/run_eval_suite.ts \
+            --mode=structural \
+            --save-report \
+            --verbose
+
+      - name: Upload eval report
+        uses: actions/upload-artifact@v4
+        if: always()   # Upload even on failure so you can inspect
+        with:
+          name: eval-report-${{ github.run_id }}
+          path: synapse-app/eval-report.md
+
+      - name: Comment report on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const reportPath = 'synapse-app/eval-report.md';
+            if (!fs.existsSync(reportPath)) {
+              console.log('No report file found');
+              return;
+            }
+            const report = fs.readFileSync(reportPath, 'utf8');
+            const summary = report.split('\n').slice(0, 30).join('\n');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `## 🤖 Synapse Agent Quality Gate\n\n${summary}\n\n<details><summary>Full Report</summary>\n\n${report}\n\n</details>`,
+            });
+
+  # ─── Optional: Full LLM Judge (manual trigger or weekly schedule) ───────────
+  llm-judge-eval:
+    name: 🧠 LLM Judge Evaluation (Manual/Scheduled)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: synapse-app
+
+      - name: Run LLM Judge eval suite
+        working-directory: synapse-app
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_LOCATION: us-central1
+        run: |
+          # Write GCP credentials to temp file
+          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/gcp-key.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-key.json
+
+          npx tsx src/scripts/run_eval_suite.ts \
+            --mode=llm_judge \
+            --save-report \
+            --verbose
+
+      - name: Upload LLM Judge report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: llm-judge-report-${{ github.run_id }}
+          path: synapse-app/eval-report.md

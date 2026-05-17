@@ -1,0 +1,44 @@
+{
+  "name": "synapse-gtm",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "eval": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/run_eval_suite.ts",
+    "e2e": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/e2e_daily_simulation.ts",
+    "redteam": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/run_redteam.ts",
+    "mcp:start": "npx dotenv-cli -e .env.local -- npx tsx src/lib/mcp/mcpServer.ts",
+    "test:tools": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/test-gateway.ts",
+    "test:market-intel": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/test_market_intel_live.ts"
+  },
+  "dependencies": {
+    "@google-cloud/vertexai": "^1.12.0",
+    "@google/genai": "^2.3.0",
+    "@google/generative-ai": "^0.24.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@slack/web-api": "^7.16.0",
+    "@supabase/supabase-js": "^2.105.4",
+    "chart.js": "^4.5.1",
+    "dotenv": "^17.4.2",
+    "google-auth-library": "^10.6.2",
+    "googleapis": "^171.4.0",
+    "lucide-react": "^1.16.0",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "dotenv-cli": "^8.0.0",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tsx": "^4.19.4",
+    "typescript": "^5"
+  }
+}

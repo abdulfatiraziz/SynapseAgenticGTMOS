@@ -21,8 +21,7 @@
  *   auto_approve_on_timeout → override to auto-approve instead
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { SynapseConfig, isHitlGated } from '@config';
+import { getSupabaseAdmin } from '../supabaseAdmin';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,12 +43,7 @@ export interface ApprovalResult {
   decisionNote?: string;
 }
 
-// ─── Supabase client ──────────────────────────────────────────────────────────
-
-const sbAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
-);
+import { SynapseConfig, isHitlGated } from '@config';
 
 // ─── Slack helper ─────────────────────────────────────────────────────────────
 
@@ -152,7 +146,7 @@ async function pollForDecision(
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, pollIntervalMs));
 
-    const { data, error } = await sbAdmin
+    const { data, error } = await (getSupabaseAdmin() as any)
       .from('hitl_approvals')
       .select('status, decided_by, decision_note')
       .eq('id', approvalId)
@@ -178,7 +172,7 @@ async function pollForDecision(
     ? 'approved'
     : 'timed_out';
 
-  await sbAdmin
+  await (getSupabaseAdmin() as any)
     .from('hitl_approvals')
     .update({ status: 'timed_out', decided_at: new Date().toISOString() })
     .eq('id', approvalId);
@@ -217,7 +211,7 @@ export class HitlGateway {
     );
 
     // Write approval record to Supabase
-    const { data, error } = await sbAdmin
+    const { data, error } = await (getSupabaseAdmin() as any)
       .from('hitl_approvals')
       .insert({
         task_id: req.taskId ?? null,
@@ -258,7 +252,7 @@ export class HitlGateway {
     decidedBy: string,
     note?: string
   ): Promise<void> {
-    await sbAdmin
+    await (getSupabaseAdmin() as any)
       .from('hitl_approvals')
       .update({
         status: decision,

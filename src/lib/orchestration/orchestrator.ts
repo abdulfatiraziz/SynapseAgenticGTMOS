@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '../supabaseAdmin';
 import { SynapseConfig } from '@config';
 
 export interface TaskPayload {
@@ -6,13 +6,8 @@ export interface TaskPayload {
   description?: string;
   input_data: any;
   priority?: 'high' | 'medium' | 'low';
-  task_type?: string; // Method name to invoke on the receiving agent
+  task_type?: string;
 }
-
-const sbAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
-);
 
 export class Orchestrator {
   /**
@@ -90,7 +85,7 @@ export class Orchestrator {
     // All retries exhausted — write a failed task to DB for observability
     console.error(`[A2A] All ${max_retries} retries failed for ${senderId}→${receiverId}`);
 
-    const { data: failedTask } = await sbAdmin
+    const { data: failedTask } = await (getSupabaseAdmin() as any)
       .from('agent_tasks')
       .insert({
         session_id:     sid,
@@ -171,7 +166,7 @@ export class Orchestrator {
     const traceId = `trace-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     console.log(`[Cloud Trace: ${traceId}] type='${type}' agent=${agentUuid}`);
     try {
-      await (sbAdmin as any).from('logs').insert([{
+      await (getSupabaseAdmin() as any).from('logs').insert([{
         agent_id: agentUuid,
         task_id: taskId,
         event_type: type,
@@ -182,7 +177,7 @@ export class Orchestrator {
 
   static async updateAgentStatus(agentUuid: string, status: string, actionText: string) {
     try {
-      await (sbAdmin as any).from('agents').update({
+      await (getSupabaseAdmin() as any).from('agents').update({
         status,
         last_action: actionText,
         updated_at: new Date().toISOString(),

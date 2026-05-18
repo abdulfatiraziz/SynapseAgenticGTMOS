@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { SynapseConfig, isAgentActive } from '@config';
+import { getSupabaseAdmin } from '@lib/supabaseAdmin';
 
 /**
  * POST /api/agents/[agentId]/run
@@ -22,11 +22,6 @@ import { SynapseConfig, isAgentActive } from '@config';
  * { task_id, status: 'queued' | 'running' | 'done' | 'failed', output? }
  */
 
-const sbAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
-);
-
 // Registry: maps agent_id → { import path, class name, method map }
 // Add new agents here as the system grows
 const AGENT_REGISTRY: Record<string, {
@@ -47,6 +42,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
+  // Lazy client — only created at request time, never at module load
+  const sbAdmin = getSupabaseAdmin();
+
   const { agentId: originalAgentId } = await params;
   let targetAgentId = originalAgentId;
 
@@ -115,7 +113,7 @@ export async function POST(
   }
 
   // ── Create task record ─────────────────────────────────────────────────────
-  const { data: taskRow, error: taskErr } = await sbAdmin
+  const { data: taskRow, error: taskErr } = await (sbAdmin as any)
     .from('agent_tasks')
     .insert({
       session_id,
@@ -137,17 +135,15 @@ export async function POST(
   const taskId = taskRow.id;
 
   // ── Execute agent async (don't block the response) ──────────────────────────
-  // Update to 'running' immediately so caller knows it's been picked up
-  sbAdmin.from('agent_tasks').update({ status: 'running', started_at: new Date().toISOString() }).eq('id', taskId);
+  (sbAdmin as any).from('agent_tasks').update({ status: 'running', started_at: new Date().toISOString() }).eq('id', taskId);
 
-  // Fire and forget execution (Next.js edge-compatible pattern)
-  executeAgent(targetAgentId, agentDef, task_type, input_data, session_id, taskId).catch(err => {
+  executeAgent(targetAgentId, agentDef, task_type, input_data, session_id, taskId, sbAdmin).catch(err => {
     console.error(`[A2A] Agent ${targetAgentId} execution failed:`, err);
   });
 
   return NextResponse.json(
     { task_id: taskId, status: 'running', agent_id: targetAgentId, task_type, original_agent_id: originalAgentId },
-    { status: 202 } // 202 Accepted = async processing
+    { status: 202 }
   );
 }
 
@@ -156,13 +152,14 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
+  const sbAdmin = getSupabaseAdmin();
   const { agentId } = await params;
   const taskId = req.nextUrl.searchParams.get('task_id');
   if (!taskId) {
     return NextResponse.json({ error: 'task_id query param required' }, { status: 400 });
   }
 
-  const { data, error } = await sbAdmin
+  const { data, error } = await (sbAdmin as any)
     .from('agent_tasks')
     .select('id, status, output_data, error_message, created_at, completed_at')
     .eq('id', taskId)
@@ -184,16 +181,15 @@ async function executeAgent(
   taskType: string,
   inputData: Record<string, unknown>,
   sessionId: string,
-  taskId: string
+  taskId: string,
+  sbAdmin: any
 ): Promise<void> {
   try {
-    // Dynamic import — only loads the agent module when needed
     const module = await import(agentDef.importPath);
     const AgentClass = module[agentDef.className];
 
     if (!AgentClass) throw new Error(`Class '${agentDef.className}' not found in module`);
 
-    // Instantiate with sessionId propagation (cross-agent trace correlation)
     const agent = new AgentClass(sessionId);
     const method = agent[taskType];
 
@@ -203,7 +199,6 @@ async function executeAgent(
 
     const output = await method.call(agent, inputData);
 
-    // Mark done
     await sbAdmin.from('agent_tasks').update({
       status: 'done',
       output_data: output ?? {},

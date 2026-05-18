@@ -20,7 +20,8 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@config": ["./synapse.config.ts"]
+      "@config": ["./synapse.config.ts"],
+      "@lib/*": ["./src/lib/*"]
     }
   },
   "include": [

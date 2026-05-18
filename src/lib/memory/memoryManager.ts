@@ -10,8 +10,8 @@
  *   min_similarity → cosine similarity threshold (0–1)
  */
 
-import { createClient } from '@supabase/supabase-js';
-import { SynapseConfig } from '../../../synapse.config';
+import { getSupabaseAdmin } from '../supabaseAdmin';
+import { SynapseConfig } from '@config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,12 +44,6 @@ export interface StoreMemoryOptions {
   expiresAt?: Date | null;
 }
 
-// ─── Supabase admin client ────────────────────────────────────────────────────
-// Uses service-role key so we can write embeddings server-side
-const sbAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
-);
 
 // ─── Embedding helper ─────────────────────────────────────────────────────────
 
@@ -92,7 +86,7 @@ export class MemoryManager {
       const vec = await embed(content);
       const embeddingStr = vec.length > 0 ? vectorToString(vec) : null;
 
-      const { data, error } = await sbAdmin
+      const { data, error } = await getSupabaseAdmin()
         .from('agent_memory')
         .insert({
           agent_id: agentId,
@@ -141,7 +135,7 @@ export class MemoryManager {
       const vec = await embed(query);
       if (vec.length === 0) return [];
 
-      const { data, error } = await sbAdmin.rpc('match_memories', {
+      const { data, error } = await getSupabaseAdmin().rpc('match_memories', {
         query_embedding: vectorToString(vec),
         match_count: topK,
         match_threshold: minSimilarity,
@@ -188,7 +182,7 @@ export class MemoryManager {
    * Delete a specific memory by ID (GDPR compliance / data hygiene).
    */
   static async forget(memoryId: string): Promise<boolean> {
-    const { error } = await sbAdmin
+    const { error } = await getSupabaseAdmin()
       .from('agent_memory')
       .delete()
       .eq('id', memoryId);
@@ -206,7 +200,7 @@ export class MemoryManager {
    * Delete all memories for a specific agent (e.g., full reset).
    */
   static async forgetAll(agentId: string): Promise<number> {
-    const { data, error } = await sbAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('agent_memory')
       .delete()
       .eq('agent_id', agentId)
@@ -226,7 +220,7 @@ export class MemoryManager {
    * Purge expired memories (run this as a cron job / Supabase Edge Function).
    */
   static async purgeExpired(): Promise<number> {
-    const { data, error } = await sbAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('agent_memory')
       .delete()
       .lt('expires_at', new Date().toISOString())
@@ -260,7 +254,7 @@ export class MemoryManager {
     if (!SynapseConfig.memory.enabled) return null;
 
     // 1. Fetch all memories for this agent, oldest first
-    const { data: allMemories, error } = await sbAdmin
+    const { data: allMemories, error } = await getSupabaseAdmin()
       .from('agent_memory')
       .select('id, content, memory_type, created_at')
       .eq('agent_id', agentId)
@@ -323,7 +317,7 @@ COMPACTED SUMMARY:`,
 
       // 7. Delete the now-summarized memories to keep the store clean
       const idsToDelete = toSummarize.map(m => m.id);
-      await sbAdmin.from('agent_memory').delete().in('id', idsToDelete);
+      await getSupabaseAdmin().from('agent_memory').delete().in('id', idsToDelete);
 
       console.log(`[Memory] compact: done — stored summary id=${summaryId}, deleted ${idsToDelete.length} old memories for agent=${agentId}`);
       return summaryId;
@@ -338,7 +332,7 @@ COMPACTED SUMMARY:`,
    * Count total memories for an agent (used to decide if compaction is needed).
    */
   static async count(agentId: string): Promise<number> {
-    const { count, error } = await sbAdmin
+    const { count, error } = await getSupabaseAdmin()
       .from('agent_memory')
       .select('id', { count: 'exact', head: true })
       .eq('agent_id', agentId);

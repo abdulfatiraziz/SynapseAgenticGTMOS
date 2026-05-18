@@ -3,7 +3,7 @@
 **The first open-source, multi-agent Go-To-Market operating system.** 
 Synapse deploys a 17-agent AI organization (CMO, SDR, Market Intel, RevOps, etc.) to autonomously manage your entire revenue lifecycle. 
 
-Built with Next.js, Supabase, and Google Gemini 3 Flash.
+Built with Next.js, Supabase, and Google Gemini 2.5 Flash.
 
 ## 🚀 Key Features
 

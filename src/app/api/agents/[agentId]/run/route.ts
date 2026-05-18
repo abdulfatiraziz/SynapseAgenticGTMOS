@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { SynapseConfig, isAgentActive } from '../../../../../synapse.config';
+import { SynapseConfig, isAgentActive } from '@config';
 
 /**
  * POST /api/agents/[agentId]/run
@@ -23,8 +23,8 @@ import { SynapseConfig, isAgentActive } from '../../../../../synapse.config';
  */
 
 const sbAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
 );
 
 // Registry: maps agent_id → { import path, class name, method map }
@@ -45,9 +45,10 @@ const AGENT_REGISTRY: Record<string, {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
-  let targetAgentId = params.agentId;
+  const { agentId: originalAgentId } = await params;
+  let targetAgentId = originalAgentId;
 
   // ── Canary Routing ────────────────────────────────────────────────────────
   if (SynapseConfig.canary.enabled && SynapseConfig.canary.routing[targetAgentId]) {
@@ -145,7 +146,7 @@ export async function POST(
   });
 
   return NextResponse.json(
-    { task_id: taskId, status: 'running', agent_id: targetAgentId, task_type, original_agent_id: params.agentId },
+    { task_id: taskId, status: 'running', agent_id: targetAgentId, task_type, original_agent_id: originalAgentId },
     { status: 202 } // 202 Accepted = async processing
   );
 }
@@ -153,8 +154,9 @@ export async function POST(
 /** GET /api/agents/[agentId]/run?task_id=xxx — Poll task status */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
+  const { agentId } = await params;
   const taskId = req.nextUrl.searchParams.get('task_id');
   if (!taskId) {
     return NextResponse.json({ error: 'task_id query param required' }, { status: 400 });
@@ -164,7 +166,7 @@ export async function GET(
     .from('agent_tasks')
     .select('id, status, output_data, error_message, created_at, completed_at')
     .eq('id', taskId)
-    .eq('to_agent_id', params.agentId)
+    .eq('to_agent_id', agentId)
     .single();
 
   if (error || !data) {

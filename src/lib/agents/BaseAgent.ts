@@ -6,7 +6,7 @@ import { SAIF } from '../security/saif';
 import { ContextLoader } from '../knowledge/contextLoader';
 import { TraceLogger, generateSessionId } from '../observability/traceLogger';
 import { MemoryManager, type MemoryType, type MemoryEntry } from '../memory/memoryManager';
-import { SynapseConfig } from '../../../synapse.config';
+import { SynapseConfig } from '@config';
 
 export class BaseAgent {
   public agentId: string;
@@ -65,7 +65,7 @@ export class BaseAgent {
     // SAIF Input Filtering
     const inputCheck = SAIF.sanitizeInput(input);
     if (!inputCheck.isSafe) {
-      await this.tracer.traceSecurityBlock(inputCheck.reason, input);
+      await this.tracer.traceSecurityBlock(inputCheck.reason!, input);
       console.warn(`[SAIF BLOCKED] Input rejected: ${inputCheck.reason}`);
       throw new Error(`Security Violation: ${inputCheck.reason}`);
     }
@@ -118,7 +118,7 @@ export class BaseAgent {
         // SAIF Output Filtering
         const outputCheck = SAIF.sanitizeOutput(parsedResponse);
         if (!outputCheck.isSafe) {
-          await this.tracer.traceSecurityBlock(outputCheck.reason, JSON.stringify(parsedResponse));
+          await this.tracer.traceSecurityBlock(outputCheck.reason!, JSON.stringify(parsedResponse));
           console.warn(`[SAIF BLOCKED] Output rejected: ${outputCheck.reason}`);
           throw new Error(`Security Violation: ${outputCheck.reason}`);
         }

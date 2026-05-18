@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { SynapseConfig } from '../../../synapse.config';
+import { SynapseConfig } from '@config';
 
 export interface TaskPayload {
   title: string;
@@ -10,8 +10,8 @@ export interface TaskPayload {
 }
 
 const sbAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
 );
 
 export class Orchestrator {
@@ -170,19 +170,23 @@ export class Orchestrator {
   static async logEvent(agentUuid: string, taskId: string | null, type: string, content: string) {
     const traceId = `trace-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     console.log(`[Cloud Trace: ${traceId}] type='${type}' agent=${agentUuid}`);
-    await sbAdmin.from('logs').insert([{
-      agent_id: agentUuid,
-      task_id: taskId,
-      event_type: type,
-      content,
-    }]).catch(() => {});
+    try {
+      await (sbAdmin as any).from('logs').insert([{
+        agent_id: agentUuid,
+        task_id: taskId,
+        event_type: type,
+        content,
+      }]);
+    } catch { /* Non-critical log — ignore failures */ }
   }
 
   static async updateAgentStatus(agentUuid: string, status: string, actionText: string) {
-    await sbAdmin.from('agents').update({
-      status,
-      last_action: actionText,
-      updated_at: new Date().toISOString(),
-    }).eq('id', agentUuid).catch(() => {});
+    try {
+      await (sbAdmin as any).from('agents').update({
+        status,
+        last_action: actionText,
+        updated_at: new Date().toISOString(),
+      }).eq('id', agentUuid);
+    } catch { /* Non-critical — ignore failures */ }
   }
 }

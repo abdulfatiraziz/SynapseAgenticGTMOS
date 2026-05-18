@@ -114,7 +114,7 @@ const MOCK_AGENT_OUTPUTS: Record<string, Record<string, unknown>> = {
 async function writeResultsToSupabase(
   results: CriticResult[],
   runId: string,
-  sbAdmin: ReturnType<typeof createClient>
+  sbAdmin: any
 ): Promise<void> {
   const rows = results.map(r => ({
     run_id: runId,
@@ -130,7 +130,7 @@ async function writeResultsToSupabase(
     evaluated_at: r.evaluated_at,
   }));
 
-  const { error } = await sbAdmin.from('eval_results').insert(rows);
+  const { error } = await (sbAdmin as any).from('eval_results').insert(rows);
   if (error) {
     console.warn(`[EvalRunner] Failed to write results to Supabase: ${error.message}`);
     console.warn('[EvalRunner] Results are still printed to stdout.');
@@ -272,8 +272,8 @@ export async function runEvalSuite(options: {
   if (writeToDb) {
     try {
       const sbAdmin = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
+        process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+        process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
       );
       await writeResultsToSupabase(results, runId, sbAdmin);
       console.log(`\n[EvalRunner] Results written to Supabase (run_id: ${runId})`);

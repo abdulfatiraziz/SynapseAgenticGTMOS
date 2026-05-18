@@ -4,11 +4,12 @@ const project = process.env.GCP_PROJECT_ID || '';   // Required: set GCP_PROJECT
 const location = process.env.GCP_LOCATION || 'us-central1';
 
 // Initialize the client for Vertex AI
+// vertexai: true enables Vertex AI mode; project + location are top-level constructor params
 export const aiClient = new GoogleGenAI({
-  vertexai: { project, location },
+  vertexai: true,
   project,
-  location
+  location,
 });
 
-export const getGeminiPro = () => aiClient.models.get('gemini-3.1-pro');
-export const getGeminiFlash = () => aiClient.models.get('gemini-3.1-flash-lite');
+export const getGeminiPro = () => 'gemini-2.5-pro';
+export const getGeminiFlash = () => 'gemini-2.5-flash';

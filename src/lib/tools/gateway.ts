@@ -148,9 +148,6 @@ const toolsRegistry: Record<string, Function> = {
       return { status: 'error', message: err.message };
     }
   },
-  LinkedIn: async (params: any) => {
-    return { status: 'success', data: 'Mock LinkedIn data: Sent connection request to VP of Sales.', query: params };
-  },
   Klue: async (params: any) => {
     return { status: 'success', data: 'Mock Klue data: Competitor X just dropped their price by 10%.', query: params };
   },
@@ -500,7 +497,7 @@ const toolsRegistry: Record<string, Function> = {
         const data = JSON.parse(responseText);
         if (!response.ok) throw new Error(JSON.stringify(data));
         return { status: 'success', data };
-      } catch (e) {
+      } catch (e: any) {
         console.warn(`[Gateway] Google Ads Live Failed: ${e.message}. Falling back to Mock Data.`);
         // Fallback to Mock Data for Sprint 2 Development
         return { 

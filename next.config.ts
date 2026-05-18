@@ -1,11 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // @ts-ignore
+  // @ts-expect-error
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // @ts-ignore
+  // @ts-expect-error
   typescript: {
     ignoreBuildErrors: true,
   },

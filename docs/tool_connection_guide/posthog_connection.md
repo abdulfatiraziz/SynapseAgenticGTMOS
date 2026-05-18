@@ -12,7 +12,7 @@ PostHog provides the "Usage Data" that allows the **Head of PLG (02b)** to ident
 4. **Project ID:** Copy your "Project API Key / Token" or the numeric Project ID from the URL.
 
 ## 3. Configuration
-Add your credentials to [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add your credentials to [`.env.local`](`.env.local`):
 ```bash
 POSTHOG_API_KEY="phx_your_personal_key_here"
 POSTHOG_PROJECT_ID="12345"

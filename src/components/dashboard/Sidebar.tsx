@@ -67,9 +67,9 @@ const Sidebar = () => {
 
       <div className="sidebar-footer">
         <div className="user-profile">
-          <div className="avatar">AF</div>
+          <div className="avatar">GT</div>
           <div className="user-info">
-            <span className="user-name">Abdul Fatir</span>
+            <span className="user-name">GTM Admin</span>
             <span className="user-role">GTM Engineer</span>
           </div>
         </div>

@@ -18,7 +18,7 @@ Your Access Token must have the following scopes:
 - `r_liteprofile` (to read your URN)
 
 ## 4. Configuration
-Add your token to [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add your token to [`.env.local`](`.env.local`):
 ```bash
 LINKEDIN_ACCESS_TOKEN="your_oauth_token_here"
 ```

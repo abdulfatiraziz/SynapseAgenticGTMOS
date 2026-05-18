@@ -14,7 +14,7 @@ The Zoom integration allows the **Field & Events Manager (03d)** to pull real-ti
    - `user:read:admin`
 
 ## 3. Configuration
-Add your credentials to [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add your credentials to [`.env.local`](`.env.local`):
 ```bash
 ZOOM_API_KEY="your_client_id_here"
 ZOOM_API_SECRET="your_client_secret_here"

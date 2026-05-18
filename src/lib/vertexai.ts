@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
-const project = process.env.GCP_PROJECT_ID || 'level-up-life-j44w4';
+const project = process.env.GCP_PROJECT_ID || '';   // Required: set GCP_PROJECT_ID in .env.local
 const location = process.env.GCP_LOCATION || 'us-central1';
 
 // Initialize the client for Vertex AI

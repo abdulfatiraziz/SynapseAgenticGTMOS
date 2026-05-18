@@ -14,7 +14,7 @@ The **Demand Gen Manager (03b)** uses GA4 to identify which marketing channels (
    - Copy the **Property ID**.
 
 ## 3. Configuration
-Add the ID to [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the ID to [`.env.local`](`.env.local`):
 ```bash
 GA4_PROPERTY_ID="123456789"
 ```

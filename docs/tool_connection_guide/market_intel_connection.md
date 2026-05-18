@@ -22,7 +22,7 @@ The tool supports the following intent-based actions:
 | `fetch_g2_sentiment` | Pulls "vibe" and review data. | "What do people hate about Salesforce Agentforce?" |
 
 ## 4. Setup & Configuration
-The `MarketIntel` tool is built into the `ToolGateway` and requires no additional API keys beyond the core **Gemini 3** setup in [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local).
+The `MarketIntel` tool is built into the `ToolGateway` and requires no additional API keys beyond the core **Gemini 3** setup in [`.env.local`](`.env.local`).
 
 ## 5. Verification
 To verify the Market Intel connection, run the strategy mission script:

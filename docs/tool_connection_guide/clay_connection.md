@@ -8,11 +8,11 @@ This guide explains how to connect the Synapse AI ecosystem to **Clay.com** usin
 3. Copy the **Webhook URL** provided by Clay.
 
 ## 2. Environment Variables
-Add the following key to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/.env.local):
+Add the following key to your [`.env.local`](`.env.local`):
 - `CLAY_WEBHOOK_URL`: The specific URL for your Clay table.
 
 ## 3. Implementation Details
-The `Clay` tool is implemented in [`gateway.ts`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/src/lib/tools/gateway.ts). It sends a `POST` request with the agent's requested data directly to your Clay table.
+The `Clay` tool is implemented in [`gateway.ts`](`src/lib/tools/gateway.ts`). It sends a `POST` request with the agent's requested data directly to your Clay table.
 
 ### Example Usage (Enrichment):
 ```typescript

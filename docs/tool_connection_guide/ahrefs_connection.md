@@ -9,11 +9,11 @@ This guide explains how to connect the Synapse AI ecosystem to **Ahrefs** for or
 4. Ensure the app has permissions for `site-explorer` and `keywords-explorer`.
 
 ## 2. Environment Variables
-Add the following key to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the following key to your [`.env.local`](`.env.local`):
 - `AHREFS_API_KEY`: Your Ahrefs API v3 token.
 
 ## 3. Implementation Details
-The `Ahrefs` tool is implemented in [`gateway.ts`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/src/lib/tools/gateway.ts). It uses the Ahrefs API v3 to pull SEO metrics.
+The `Ahrefs` tool is implemented in [`gateway.ts`](`src/lib/tools/gateway.ts`). It uses the Ahrefs API v3 to pull SEO metrics.
 
 ### Example Usage:
 ```typescript

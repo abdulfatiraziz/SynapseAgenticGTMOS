@@ -13,7 +13,7 @@ This guide explains how to connect the Synapse AI ecosystem to **Meta Ads** for 
 4. **Ad Account ID:** Your ID can be found in the Ads Manager URL (e.g., `act_123456789`).
 
 ## 2. Environment Variables
-Add the following keys to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the following keys to your [`.env.local`](`.env.local`):
 - `META_ADS_ACCESS_TOKEN`: The token generated in the Explorer.
 - `META_ADS_AD_ACCOUNT_ID`: Your ad account ID (including the `act_` prefix).
 

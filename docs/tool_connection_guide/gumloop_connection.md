@@ -9,12 +9,12 @@ This guide explains how to connect the Synapse AI ecosystem to **Gumloop.com** f
 4. Note your **User ID** (found in the same settings panel).
 
 ## 2. Environment Variables
-Add the following keys to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the following keys to your [`.env.local`](`.env.local`):
 - `GUMLOOP_API_KEY`: Your secret API key.
 - `GUMLOOP_USER_ID`: Your unique User ID.
 
 ## 3. Implementation Details
-The `Gumloop` tool is implemented in [`gateway.ts`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/src/lib/tools/gateway.ts). It uses the `trigger_pipeline_run` endpoint to start a flow.
+The `Gumloop` tool is implemented in [`gateway.ts`](`src/lib/tools/gateway.ts`). It uses the `trigger_pipeline_run` endpoint to start a flow.
 
 ### Example Usage:
 ```typescript

@@ -4,7 +4,7 @@ This document provides a historical record of the setup, architecture, and devel
 
 ## 🏗️ 1. The Foundation: GCP & Gemini
 We began by establishing a secure enterprise backbone on **Google Cloud Platform (GCP)**.
-- **Project Identity:** `level-up-life-j44w4`.
+- **Project Identity:** `YOUR_GCP_PROJECT_ID`.
 - **Primary Model:** **Gemini 1.5 Pro** (via Google AI SDK), chosen for its massive context window (2M tokens) and native tool-calling capabilities.
 - **Security:** Implemented a **Service Account** (`synapse-enterprise-agent@...`) as the primary identity for all server-side operations, ensuring agents act with a persistent, non-expiring workplace identity.
 

@@ -30,7 +30,7 @@ Ensure your Slack App has the following scopes granted:
 - `channels:history`: For monitoring intent in public channels.
 
 ## 4. Configuration
-Token location: [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local)
+Token location: [`.env.local`](`.env.local`)
 ```bash
 SLACK_BOT_TOKEN="xoxb-your-token-here"
 ```

@@ -11,7 +11,7 @@ The **Field & Events Manager (03d)** uses this tool to "listen" for new signups.
 3. Set the permission to **"Editor"** or **"Viewer"**.
 
 ## 3. Configuration
-Add the Spreadsheet ID (found in the URL) to [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the Spreadsheet ID (found in the URL) to [`.env.local`](`.env.local`):
 ```bash
 WEBINAR_REGISTRATION_SHEET_ID="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
 ```

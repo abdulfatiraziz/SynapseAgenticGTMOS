@@ -19,7 +19,7 @@ This guide details the integration of the **Instagram Graph API** for autonomous
 You will need your **Instagram Business Account ID** (not your username). You can find this via the Graph API Explorer by querying `/me/accounts`.
 
 ## 4. Configuration
-Add the details to [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the details to [`.env.local`](`.env.local`):
 ```bash
 INSTAGRAM_ACCESS_TOKEN="your_meta_token_here"
 INSTAGRAM_BUSINESS_ACCOUNT_ID="17841400000000000"

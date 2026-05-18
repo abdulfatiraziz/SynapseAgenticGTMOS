@@ -3,16 +3,16 @@
 This guide explains how we use a **Google Service Account** to allow agents to manage Drive, Docs, and Sheets.
 
 ## 1. Service Account Setup
-1. Created a service account in the **Level Up Life** GCP project.
-2. **Key Email:** `synapse-enterprise-agent@level-up-life-j44w4.iam.gserviceaccount.com`
+1. Created a service account in your **GCP project** (see `.env.local` → `GCP_PROJECT_ID`).
+2. **Key Email:** `synapse-agent@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com`
 3. **Permissions:** The service account has been granted API access to Drive, Docs, and Sheets.
 
 ## 2. Environment Variables
-The following key is used in [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/.env.local):
+The following key is used in [`.env.local`](`.env.local`):
 - `GOOGLE_APPLICATION_CREDENTIALS`: Path to the service account JSON key file.
 
 ## 3. Implementation Details
-The `Google` tool is implemented in [`gateway.ts`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/src/lib/tools/gateway.ts) using the `googleapis` library.
+The `Google` tool is implemented in [`gateway.ts`](`src/lib/tools/gateway.ts`) using the `googleapis` library.
 
 ### Key Use Cases:
 - **Drafting Strategy Docs:** Content Lead (03c) creates Google Docs for whitepapers.
@@ -23,7 +23,7 @@ The `Google` tool is implemented in [`gateway.ts`](file:///Users/abdulfatiraziz/
 Because this is a Service Account, it has its own private Drive. To allow it to see **your** files:
 1. Create a folder in your Google Drive (e.g., "Synapse GTM Assets").
 2. Click **Share**.
-3. Add `synapse-enterprise-agent@level-up-life-j44w4.iam.gserviceaccount.com` as an **Editor**.
+3. Add `synapse-agent@YOUR_GCP_PROJECT_ID.iam.gserviceaccount.com` as an **Editor**.
 
 ## 4. Example Usage:
 ```typescript

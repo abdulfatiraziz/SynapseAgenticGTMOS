@@ -8,11 +8,11 @@ This guide explains how we use **Notion** as the foundational "Brain" for our 17
 3. **Important:** You must manually "Share" specific pages/databases with this integration for the agents to see them (Click `...` > `Connect to` > `Synapse AI`).
 
 ## 2. Environment Variables
-Add the following key to [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/.env.local):
+Add the following key to [`.env.local`](`.env.local`):
 - `NOTION_API_KEY`: Your Internal Integration Secret (`secret_...`).
 
 ## 3. Implementation Details
-The `Notion` tool is implemented in [`gateway.ts`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/src/lib/tools/gateway.ts). It uses the **Notion REST API (v1)**.
+The `Notion` tool is implemented in [`gateway.ts`](`src/lib/tools/gateway.ts`). It uses the **Notion REST API (v1)**.
 
 ### Key Use Cases:
 - **ICP Enforcement:** RevOps (03e) reads the ICP doc to qualify HubSpot leads.

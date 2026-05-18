@@ -8,11 +8,11 @@ This guide explains how to connect the Synapse AI ecosystem to **Apollo.io** for
 3. Create a new API Key and copy it.
 
 ## 2. Environment Variables
-Add the following key to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/.env.local):
+Add the following key to your [`.env.local`](`.env.local`):
 - `APOLLO_API_KEY`: Your unique Apollo API key.
 
 ## 3. Implementation Details
-The `Apollo` tool is implemented in [`gateway.ts`](file:///Users/abdulfatiraziz/Synpase/Synpase Agentic GTM System/synapse-app/src/lib/tools/gateway.ts). 
+The `Apollo` tool is implemented in [`gateway.ts`](`src/lib/tools/gateway.ts`). 
 
 ### Security & Authentication
 - **Header Auth:** The API key is passed via the `X-Api-Key` header (not the request body).

@@ -17,9 +17,9 @@ async function testClayLive() {
       test_mode: true,
       timestamp: new Date().toISOString(),
       lead_data: {
-        full_name: 'Abdul Fatir Aziz',
-        company: 'Synapse AI',
-        linkedin_url: 'https://www.linkedin.com/in/abdulfatiraziz/',
+        full_name: 'Jane Smith',
+        company: 'Acme Corp',
+        linkedin_url: 'https://www.linkedin.com/in/jane-smith-example/',
         email: 'abdul@example.com',
         source: 'Synapse Agentic System Test'
       }

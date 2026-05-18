@@ -32,7 +32,7 @@ This guide explains how to connect the Synapse AI ecosystem to **Google Ads** us
 7. Copy the **Refresh Token**.
 
 ## 4. Environment Variables
-Add these 6 keys to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add these 6 keys to your [`.env.local`](`.env.local`):
 - `GOOGLE_ADS_CLIENT_ID`: Your Cloud Client ID.
 - `GOOGLE_ADS_CLIENT_SECRET`: Your Cloud Client Secret.
 - `GOOGLE_ADS_REFRESH_TOKEN`: The token from OAuth Playground.

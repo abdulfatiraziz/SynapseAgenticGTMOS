@@ -19,7 +19,7 @@ If you have access to Ahrefs v3 or Semrush API:
    - Copy your **API Key**.
 
 ## 3. Environment Variables
-Add the following to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the following to your [`.env.local`](`.env.local`):
 ```env
 # SEO & Content Configuration
 AHREFS_API_KEY=your_ahrefs_v3_key

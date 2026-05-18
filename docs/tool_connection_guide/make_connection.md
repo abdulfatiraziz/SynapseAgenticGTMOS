@@ -11,7 +11,7 @@ This guide explains how to connect the Synapse AI ecosystem to **Make.com MCP To
    - Create a **Key** and copy it (e.g., `klU...`). This is your `MAKE_TOOLBOX_ID`.
 
 ## 2. Environment Variables
-Add the following keys to your [`.env.local`](file:///Users/abdulfatiraziz/Synpase/Synpase%20Agentic%20GTM%20System/synapse-app/.env.local):
+Add the following keys to your [`.env.local`](`.env.local`):
 - `MAKE_API_TOKEN`: Your Personal Access Token (for management).
 - `MAKE_TOOLBOX_ID`: The unique **Key** from your Toolbox.
 

@@ -205,8 +205,8 @@ export default function Home() {
             <a href="#network" className={s.navLink}>Architecture</a>
             <a href="#agents" className={s.navLink}>17 Agents</a>
             <a href="#tools" className={s.navLink}>Tools</a>
-            <a href="#setup" className={s.navLink}>Quickstart</a>
-            <a href="https://github.com/abdulfatiraziz/SynpaseAgenticGTM" target="_blank" rel="noreferrer" className={s.navBtn}>
+            <Link href="/demo" className={s.navLink}>Live Demo</Link>
+            <a href="https://github.com/abdulfatiraziz/SynapseAgenticGTMOS" target="_blank" rel="noreferrer" className={s.navBtn}>
               GitHub ↗
             </a>
           </nav>
@@ -229,8 +229,8 @@ export default function Home() {
           revenue team. From lead triage to competitive intelligence to customer health — on autopilot.
         </p>
         <div className={s.heroCtas}>
-          <a href="#setup" className={s.ctaPrimary}>Get Started →</a>
-          <a href="https://github.com/abdulfatiraziz/SynpaseAgenticGTM" target="_blank" rel="noreferrer" className={s.ctaSecondary}>
+          <Link href="/demo" className={s.ctaPrimary}>See Live Demo →</Link>
+          <a href="https://github.com/abdulfatiraziz/SynapseAgenticGTMOS" target="_blank" rel="noreferrer" className={s.ctaSecondary}>
             ⭐ Star on GitHub
           </a>
         </div>

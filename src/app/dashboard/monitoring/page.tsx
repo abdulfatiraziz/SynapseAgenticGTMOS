@@ -1,15 +1,10 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '../../../lib/supabaseAdmin';
 import styles from './page.module.css';
-
-// Initialize Supabase with service role for admin dashboard
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role-key'
-);
 
 export const revalidate = 0; // Disable cache for live monitoring
 
 export default async function MonitoringDashboard() {
+  const supabase = getSupabaseAdmin();
   // 1. Fetch Agent Metrics (from the view)
   const { data: metrics } = await supabase
     .from('agent_metrics')

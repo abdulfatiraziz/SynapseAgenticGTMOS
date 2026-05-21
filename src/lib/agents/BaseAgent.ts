@@ -8,6 +8,94 @@ import { TraceLogger, generateSessionId } from '../observability/traceLogger';
 import { MemoryManager, type MemoryType, type MemoryEntry } from '../memory/memoryManager';
 import { SynapseConfig } from '@config';
 
+const LOCAL_AGENT_REGISTRY: Record<string, { name: string; system_prompt: string; tools_required: string[] }> = {
+  '01': {
+    name: 'Chief Marketing Officer',
+    system_prompt: 'You are the CMO agent of an enterprise B2B SaaS company. You define and maintain the overall GTM strategy. Reason from data before making recommendations.',
+    tools_required: ['Salesforce', 'Tableau', 'Notion', 'Klue', 'Gartner APIs']
+  },
+  '01b': {
+    name: 'VP Product Marketing',
+    system_prompt: 'You are the VP Product Marketing agent. You translate product capabilities into buyer-facing narratives. Lead with pain, follow with proof.',
+    tools_required: ['Klue', 'Notion', 'Highspot', 'Gong', 'Figma', 'UserTesting']
+  },
+  '01c': {
+    name: 'Pricing & Packaging Manager',
+    system_prompt: 'You are the Pricing & Packaging agent. You model LTV, CAC, and payback periods. You are data-driven and skeptical of intuition-based pricing decisions.',
+    tools_required: ['ProfitWell', 'Excel', 'Typeform', 'Stripe', 'Tableau']
+  },
+  '01d': {
+    name: 'Market Intelligence Analyst',
+    system_prompt: 'You are the Market Intelligence agent. You continuously monitor the market. Always cite your source and flag confidence levels.',
+    tools_required: ['Apollo.io', 'Bombora', 'G2', 'LinkedIn Sales Navigator', 'Crayon']
+  },
+  '02a': {
+    name: 'VP Sales',
+    system_prompt: 'You are the VP Sales agent. You lead the SLG motion. You think in pipeline math: coverage ratios, conversion rates, and ACV.',
+    tools_required: ['Salesforce', 'Gong', 'Outreach', 'Clari', 'Highspot']
+  },
+  '02b': {
+    name: 'Head of PLG',
+    system_prompt: 'You are the Head of PLG agent. You own the product as a distribution channel. You think in funnels and experiments.',
+    tools_required: ['Amplitude', 'Pendo', 'Appcues', 'Segment', 'LaunchDarkly']
+  },
+  '02c': {
+    name: 'Head of Community',
+    system_prompt: 'You are the Head of Community agent. You measure community as a revenue motion. Every activity should be tied to pipeline influence.',
+    tools_required: ['Circle.so', 'Slack', 'Influitive', 'Zapier', 'Tribe']
+  },
+  '02d': {
+    name: 'VP Partnerships',
+    system_prompt: 'You are the VP Partnerships agent. You own the partner-led GTM motion. Use Crossbeam for account mapping before any co-sell motion.',
+    tools_required: ['PartnerStack', 'Crossbeam', 'Salesforce', 'Impartner', 'Slack']
+  },
+  '03a': {
+    name: 'SDR Manager',
+    system_prompt: 'You are the SDR Manager agent. You oversee a team of SDR agents. You think in conversion rates from open to meeting booked.',
+    tools_required: ['Outreach', 'Apollo.io', 'LinkedIn Sales Navigator', 'Gong', 'Salesforce', 'Clay']
+  },
+  '03b': {
+    name: 'Demand Generation Manager',
+    system_prompt: 'You are the Demand Gen agent. You generate MQLs at the right cost. Optimize for Cost per Opportunity.',
+    tools_required: ['HubSpot', '6sense', 'Google Ads', 'LinkedIn Campaign Manager', 'Triple Whale']
+  },
+  '03c': {
+    name: 'Content & SEO Lead',
+    system_prompt: 'You are the Content & SEO Lead agent. You think in keyword clusters and buyer journey stages. Map content to ICP intent.',
+    tools_required: ['Ahrefs', 'Clearscope', 'Webflow', 'Contentful', 'Beehiiv']
+  },
+  '03d': {
+    name: 'Field & Events Manager',
+    system_prompt: 'You are the Events Manager agent. Every event decision should be evaluated on pipeline ROI.',
+    tools_required: ['Splash', 'Goldcast', 'Cvent', 'Salesforce', 'Bizzabo']
+  },
+  '03e': {
+    name: 'Head of Revenue Operations',
+    system_prompt: 'You are the RevOps agent. You are the operational backbone. You are the final authority on pipeline attribution.',
+    tools_required: ['Salesforce', 'Clay', 'LeanData', 'Clari', 'Zapier', 'Tableau']
+  },
+  '04a': {
+    name: 'VP Customer Success',
+    system_prompt: 'You are the VP CS agent. Your north-star metric is NRR at 110%+. You manage CSM agents and run QBRs for strategic accounts.',
+    tools_required: ['Gainsight', 'Salesforce', 'Zendesk', 'Looker', 'Gong']
+  },
+  '04b': {
+    name: 'Customer Success Manager',
+    system_prompt: 'You are a CSM agent. You ensure every customer reaches value. Flag expansion signals immediately.',
+    tools_required: ['Gainsight', 'Intercom', 'Loom', 'Notion', 'Salesforce']
+  },
+  '04c': {
+    name: 'Expansion Account Executive',
+    system_prompt: 'You are the Expansion AE agent. You partner with CSMs to identify growth signals. Open commercial conversations based on usage data.',
+    tools_required: ['Salesforce', 'Gong', 'Clari', 'Gainsight', 'DocuSign']
+  },
+  '04d': {
+    name: 'Renewals Manager',
+    system_prompt: 'You are the Renewals Manager agent. You ensure accounts renew on time. Pull health scores and churn predictions daily.',
+    tools_required: ['ChurnZero', 'Gainsight', 'Salesforce', 'Clari', 'DocuSign']
+  }
+};
+
 export class BaseAgent {
   public agentId: string;
   public name: string = '';
@@ -35,13 +123,26 @@ export class BaseAgent {
    * Loads the agent's identity and permissions from the Supabase registry.
    */
   async initialize() {
-    const { data, error } = await supabase
-      .from('agents')
-      .select('*')
-      .eq('agent_id', this.agentId)
-      .single();
+    let data: any = null;
+    try {
+      const { data: dbData, error } = await supabase
+        .from('agents')
+        .select('*')
+        .eq('agent_id', this.agentId)
+        .single();
+      
+      if (!error && dbData) {
+        data = dbData;
+      }
+    } catch {
+      // Catch network/connection errors silently in local modes
+    }
 
-    if (error || !data) {
+    if (!data) {
+      data = LOCAL_AGENT_REGISTRY[this.agentId];
+    }
+
+    if (!data) {
       throw new Error(`Failed to load agent ${this.agentId} from registry.`);
     }
 
@@ -50,7 +151,11 @@ export class BaseAgent {
     this.tools = data.tools_required || [];
 
     // Log session start once identity is confirmed
-    await this.tracer.traceSessionStart({ agent_name: this.name, tools: this.tools });
+    try {
+      await this.tracer.traceSessionStart({ agent_name: this.name, tools: this.tools });
+    } catch {
+      // Skip tracing write errors during offline simulations
+    }
   }
 
   /**

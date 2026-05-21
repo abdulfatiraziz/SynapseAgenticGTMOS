@@ -52,6 +52,14 @@ function summarizeInput(input: unknown): string {
   ).replace(/\b\d{10,}\b/g, '[phone]');
 }
 
+declare global {
+  var inMemoryTraces: any[] | undefined;
+}
+
+if (!globalThis.inMemoryTraces) {
+  globalThis.inMemoryTraces = [];
+}
+
 // ─── TraceLogger ─────────────────────────────────────────────────────────────
 
 export class TraceLogger {
@@ -73,6 +81,15 @@ export class TraceLogger {
       timestamp: new Date().toISOString(),
       ...event,
     };
+
+    // Store in circular global in-memory buffer for offline UI monitoring
+    if (!globalThis.inMemoryTraces) {
+      globalThis.inMemoryTraces = [];
+    }
+    globalThis.inMemoryTraces.unshift(record);
+    if (globalThis.inMemoryTraces.length > 100) {
+      globalThis.inMemoryTraces = globalThis.inMemoryTraces.slice(0, 100);
+    }
 
     // Fire-and-forget: never block agent execution on logging
     supabase.from('agent_traces').insert([record]).then(({ error }) => {

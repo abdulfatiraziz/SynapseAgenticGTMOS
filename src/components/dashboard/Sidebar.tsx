@@ -1,39 +1,62 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
-  Mail, 
-  UserPlus, 
-  Target, 
-  BarChart3, 
   Database, 
-  Users, 
-  Wallet, 
   Server, 
-  Lightbulb,
   Network,
-  LogOut
+  LogOut,
+  Settings,
+  Play
 } from 'lucide-react';
 
 const Sidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const [user, setUser] = useState({ name: 'GTM Admin', role: 'GTM Engineer' });
+
+  useEffect(() => {
+    const stored = localStorage.getItem('synapse_user');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setUser({
+          name: parsed.name || 'GTM Admin',
+          role: parsed.role || 'GTM Engineer'
+        });
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('synapse_user');
+    router.push('/login');
+    router.refresh();
+  };
 
   const navItems = [
     { name: 'Executive Home', icon: LayoutDashboard, path: '/dashboard', id: 'home' },
+    { name: 'Control Center', icon: Settings, path: '/dashboard/control-center', id: 'control-center' },
     { name: 'Organization Map', icon: Network, path: '/dashboard/org-map', id: 'org-map' },
-    { name: 'Outbound Automation', icon: Mail, path: '/dashboard/outbound', id: 'outbound' },
-    { name: 'Inbound Automation', icon: UserPlus, path: '/dashboard/inbound', id: 'inbound' },
-    { name: 'LinkedIn Ads (ABM)', icon: Target, path: '/dashboard/ads', id: 'linkedin-ads' },
-    { name: 'RevOps Automation', icon: BarChart3, path: '/dashboard/revops', id: 'revops' },
-    { name: 'CRM Enrichment', icon: Database, path: '/dashboard/enrichment', id: 'enrichment' },
-    { name: 'Client Performance', icon: Users, path: '/dashboard/clients', id: 'client-performance' },
-    { name: 'Financials', icon: Wallet, path: '/dashboard/financials', id: 'financials' },
-    { name: 'System Health', icon: Server, path: '/dashboard/health', id: 'system-health' },
-    { name: 'Strategic & BI', icon: Lightbulb, path: '/dashboard/bi', id: 'strategic-bi' },
+    { name: 'GTM Flow Simulator', icon: Play, path: '/dashboard/simulation', id: 'simulation' },
+    { name: 'Agentic Infrastructure', icon: Database, path: '/dashboard/infrastructure', id: 'infrastructure' },
+    { name: 'Live Observability', icon: Server, path: '/dashboard/monitoring', id: 'monitoring' },
   ];
+
+  const avatarLetters = user.name
+    ? user.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : 'GT';
 
   return (
     <aside className="sidebar">
@@ -67,13 +90,17 @@ const Sidebar = () => {
 
       <div className="sidebar-footer">
         <div className="user-profile">
-          <div className="avatar">GT</div>
+          <div className="avatar">{avatarLetters}</div>
           <div className="user-info">
-            <span className="user-name">GTM Admin</span>
-            <span className="user-role">GTM Engineer</span>
+            <span className="user-name">{user.name}</span>
+            <span className="user-role">{user.role}</span>
           </div>
         </div>
-        <button className="logout-btn">
+        <button 
+          className="logout-btn" 
+          onClick={handleLogout}
+          id="btn-logout"
+        >
           <LogOut size={18} />
           <span>Logout</span>
         </button>

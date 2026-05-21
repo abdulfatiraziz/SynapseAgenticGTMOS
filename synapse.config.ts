@@ -27,7 +27,31 @@ export interface CompanyConfig {
 }
 
 export interface AgentConfig {
-  /** Agent IDs to activate — inactive agents won't be reachable via A2A */
+  /**
+   * Agent IDs to activate — inactive agents won't be reachable via A2A.
+   * Registered Agents:
+   * - Strategy Layer:
+   *   '01'  : Chief Marketing Officer
+   *   '01b' : VP Product Marketing
+   *   '01c' : Pricing & Packaging Manager
+   *   '01d' : Market Intelligence Analyst
+   * - Motions Layer:
+   *   '02a' : VP Sales
+   *   '02b' : Head of PLG
+   *   '02c' : Head of Community
+   *   '02d' : VP Partnerships
+   * - Channels Layer:
+   *   '03a' : SDR Manager
+   *   '03b' : Demand Generation Manager
+   *   '03c' : Content & SEO Lead
+   *   '03d' : Field & Events Manager
+   *   '03e' : Head of Revenue Operations
+   * - Customer Success Layer:
+   *   '04a' : VP Customer Success
+   *   '04b' : Customer Success Manager
+   *   '04c' : Expansion Account Executive
+   *   '04d' : Renewals Manager
+   */
   active: string[];
   /** Per-agent system prompt overrides (merge with DB value) */
   prompt_overrides?: Record<string, string>;
@@ -79,6 +103,8 @@ export interface MemoryConfig {
    * Reduce this list to lower Gemini embedding costs.
    */
   auto_store_events: Array<'think_end' | 'tool_end' | 'agent_decision'>;
+  /** Number of memories to accumulate before triggering asynchronous compaction */
+  compaction_threshold?: number;
 }
 
 export interface A2AConfig {
@@ -126,125 +152,90 @@ export interface SynapseConfiguration {
 // Fork this and replace with your company's details.
 
 export const SynapseConfig: SynapseConfiguration = {
-  // ── Your Company ──────────────────────────────────────────────────────────
-  company: {
-    name: 'Synapse',
-    website: 'https://synapse.ai',
-    icp_summary: `
-      B2B SaaS companies, 50–500 employees, scaling go-to-market with lean teams.
-      They have a CRM (HubSpot or Salesforce) but their RevOps workflows are mostly
-      manual. They are evaluating AI automation after outgrowing spreadsheet-based
-      processes. Primary buying triggers: hiring a RevOps lead, Series A/B funding,
-      or a competitive threat displacing their current GTM stack.
-    `,
-    target_personas: [
-      'VP of Sales',
-      'Head of Revenue Operations',
-      'Chief Marketing Officer',
-      'Growth Lead',
-      'Founder / CEO (early stage)',
+  "company": {
+    "name": "Synapse",
+    "website": "https://synapse.ai",
+    "icp_summary": "\n      B2B SaaS companies, 50–500 employees, scaling go-to-market with lean teams.\n      They have a CRM (HubSpot or Salesforce) but their RevOps workflows are mostly\n      manual. They are evaluating AI automation after outgrowing spreadsheet-based\n      processes. Primary buying triggers: hiring a RevOps lead, Series A/B funding,\n      or a competitive threat displacing their current GTM stack.\n    ",
+    "target_personas": [
+      "VP of Sales",
+      "Head of Revenue Operations",
+      "Chief Marketing Officer",
+      "Growth Lead",
+      "Founder / CEO (early stage)"
     ],
-    gtm_motion: 'hybrid',
-    vertical: 'B2B SaaS',
+    "gtm_motion": "hybrid",
+    "vertical": "B2B SaaS"
   },
-
-  // ── Active Agents ──────────────────────────────────────────────────────────
-  // Comment out any agent ID to deactivate it.
-  // Inactive agents won't receive A2A tasks or appear in the dashboard.
-  agents: {
-    active: [
-      '01',    // CMO Agent
-      '01b',   // VP PMM
-      '01c',   // Pricing Agent
-      '01d',   // Market Intel
-      '02a',   // VP Sales
-      '02b',   // PLG Agent
-      '02c',   // VP Customer Success
-      '02d',   // Field Events
-      '03a',   // SDR Manager
-      '03b',   // Demand Gen
-      '03c',   // Content & SEO
-      '03d',   // Community
-      '03e',   // RevOps
-      '04a',   // Paid Media
-      '04b',   // Social Media
-      '04c',   // Analytics
-      '04d',   // Marketing Ops
+  "agents": {
+    "active": [
+      "01",
+      "01b",
+      "01c",
+      "01d",
+      "02a",
+      "02b",
+      "02c",
+      "02d",
+      "03a",
+      "03b",
+      "03c",
+      "03d",
+      "03e",
+      "04a",
+      "04b",
+      "04c",
+      "04d"
     ],
-    prompt_overrides: {
-      // Example: Override CMO persona for a different industry
-      // '01': 'You are the CMO of a FinTech company specializing in...',
-    },
+    "prompt_overrides": {}
   },
-
-  // ── Tool Modes ─────────────────────────────────────────────────────────────
-  // Start with 'mock' to test the system without API keys.
-  // Flip individual tools to 'live' as you connect them.
-  tools: {
-    default_mode: 'mock',  // ← Change to 'live' when ready for production
-    overrides: {
-      // Uncomment and set to 'live' as you connect each integration:
-      // 'Google':          'live',
-      'HubSpot':         'live',
-      'Apollo':          'live',
-      'Slack':           'live',
-      'Notion':          'live',
-      'Clay':            'live',
-      'Make':            'live',
-      'GoogleAds':       'live',
-      'MetaAds':         'live',
-      // 'Ahrefs':          'live',
-      // 'LinkedIn':        'live',
-      // 'Instagram':       'live',
-      // 'Zoom':            'live',
-      // 'PostHog':         'live',
-      // 'GoogleAnalytics': 'live',
-    },
+  "tools": {
+    "default_mode": "mock",
+    "overrides": {
+      "HubSpot": "live",
+      "Apollo": "live",
+      "Slack": "live",
+      "Notion": "live",
+      "Clay": "live",
+      "Make": "live",
+      "GoogleAds": "live",
+      "MetaAds": "live"
+    }
   },
-
-  // ── Human-in-the-Loop ──────────────────────────────────────────────────────
-  hitl: {
-    enabled: false,  // ← Set to true before connecting live tools
-    gates: [
-      // These tool calls will PAUSE and wait for Slack approval:
-      'send_email',
-      'create_deal',
-      'publish_post',
-      'send_message',    // Slack outbound
-      'create_campaign', // Paid ads
+  "hitl": {
+    "enabled": false,
+    "gates": [
+      "send_email",
+      "create_deal",
+      "publish_post",
+      "send_message",
+      "create_campaign"
     ],
-    slack_channel_id: 'C0000000000', // ← Replace with your #hitl-approvals channel ID
-    timeout_minutes: 30,
-    auto_approve_on_timeout: false, // Safe default: deny on timeout
+    "slack_channel_id": "C0000000000",
+    "timeout_minutes": 30,
+    "auto_approve_on_timeout": false
   },
-
-  // ── Memory (RAG) ───────────────────────────────────────────────────────────
-  memory: {
-    enabled: true,
-    top_k: 5,
-    min_similarity: 0.75,
-    auto_store_events: ['think_end', 'agent_decision'],
+  "memory": {
+    "enabled": true,
+    "top_k": 5,
+    "min_similarity": 0.75,
+    "auto_store_events": [
+      "think_end",
+      "agent_decision"
+    ],
+    "compaction_threshold": 80
   },
-
-  // ── Agent-to-Agent Protocol ────────────────────────────────────────────────
-  a2a: {
-    transport: 'internal', // Next.js API routes — works on Vercel, zero extra infra
-    max_retries: 3,
-    retry_backoff_ms: 500,
+  "a2a": {
+    "transport": "internal",
+    "max_retries": 3,
+    "retry_backoff_ms": 500
   },
-
-  // ── Cost & Token Budgets ───────────────────────────────────────────────────
-  budgets: {
-    max_tokens_per_session: 15000, // Safe default to prevent infinite loops
+  "budgets": {
+    "max_tokens_per_session": 15000
   },
-
-  // ── Canary Deployments ─────────────────────────────────────────────────────
-  canary: {
-    enabled: false,
-    routing: {
-      // Example: '03a': { v2_id: '03a_v2', traffic_percentage: 10 }
-    },
-  },
+  "canary": {
+    "enabled": true,
+    "routing": {}
+  }
 };
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────

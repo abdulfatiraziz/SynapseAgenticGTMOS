@@ -185,8 +185,8 @@ async function executeAgent(
   sbAdmin: any
 ): Promise<void> {
   try {
-    const module = await import(agentDef.importPath);
-    const AgentClass = module[agentDef.className];
+    const importedModule = await import(agentDef.importPath);
+    const AgentClass = importedModule[agentDef.className];
 
     if (!AgentClass) throw new Error(`Class '${agentDef.className}' not found in module`);
 

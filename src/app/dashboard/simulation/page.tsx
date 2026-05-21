@@ -20,7 +20,10 @@ import {
   Zap,
   Cpu,
   Mail,
-  TrendingUp
+  TrendingUp,
+  ZoomIn,
+  ZoomOut,
+  Maximize
 } from "lucide-react";
 
 interface VisualNode {
@@ -188,6 +191,104 @@ export default function SimulationPage() {
   const [awaitingApproval, setAwaitingApproval] = useState(false);
   const consoleEndRef = useRef<HTMLDivElement>(null);
 
+  // Whiteboard Zoom & Pan State
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1.0);
+  const [isPanning, setIsPanning] = useState(false);
+  
+  const panStartRef = useRef({ x: 0, y: 0 });
+  const canvasPanelRef = useRef<HTMLDivElement>(null);
+
+  // Mouse & Touch Whiteboard Drag / Panning Handlers
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Avoid panning if interacting with buttons, links, or node cards
+    const target = e.target as HTMLElement;
+    if (target.closest(".node-card") || target.closest("button") || target.closest("a") || target.closest(".slack-card")) {
+      return;
+    }
+    setIsPanning(true);
+    panStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isPanning) return;
+    const newX = e.clientX - panStartRef.current.x;
+    const newY = e.clientY - panStartRef.current.y;
+    setPan({ x: newX, y: newY });
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  const handleMouseLeave = () => {
+    setIsPanning(false);
+  };
+
+  // Touch device panning support
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.closest(".node-card") || target.closest("button") || target.closest("a") || target.closest(".slack-card")) {
+      return;
+    }
+    if (e.touches.length === 1) {
+      setIsPanning(true);
+      const touch = e.touches[0];
+      panStartRef.current = { x: touch.clientX - pan.x, y: touch.clientY - pan.y };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (!isPanning) return;
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const newX = touch.clientX - panStartRef.current.x;
+      const newY = touch.clientY - panStartRef.current.y;
+      setPan({ x: newX, y: newY });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsPanning(false);
+  };
+
+  // Zoom HUD triggers
+  const zoomIn = () => {
+    setZoom(prev => Math.min(parseFloat((prev + 0.1).toFixed(2)), 1.8));
+  };
+
+  const zoomOut = () => {
+    setZoom(prev => Math.max(parseFloat((prev - 0.1).toFixed(2)), 0.5));
+  };
+
+  const resetView = () => {
+    setZoom(1.0);
+    setPan({ x: 0, y: 0 });
+  };
+
+  // Dynamic non-passive wheel listener to prevent body scroll while zooming
+  useEffect(() => {
+    const canvas = canvasPanelRef.current;
+    if (!canvas) return;
+
+    const handleNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = 0.04;
+      let newZoom = zoom;
+      if (e.deltaY < 0) {
+        newZoom = Math.min(zoom + zoomFactor, 1.8);
+      } else {
+        newZoom = Math.max(zoom - zoomFactor, 0.5);
+      }
+      setZoom(parseFloat(newZoom.toFixed(2)));
+    };
+
+    canvas.addEventListener("wheel", handleNativeWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener("wheel", handleNativeWheel);
+    };
+  }, [zoom]);
+
   // Auto scroll console to bottom
   useEffect(() => {
     if (consoleEndRef.current) {
@@ -331,9 +432,42 @@ export default function SimulationPage() {
         </section>
 
         {/* Center: Node Canvas */}
-        <section className="canvas-panel glass-panel">
+        <section 
+          ref={canvasPanelRef}
+          className={`canvas-panel glass-panel ${isPanning ? 'panning' : ''}`}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseLeave}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
           <div className="canvas-grid-bg"></div>
-          <div className="canvas-wrapper">
+          
+          {/* Whiteboard HUD controls overlay */}
+          <div className="canvas-hud">
+            <button className="hud-btn" onClick={zoomOut} title="Zoom Out" aria-label="Zoom Out">
+              <ZoomOut size={14} />
+            </button>
+            <span className="hud-scale">{Math.round(zoom * 100)}%</span>
+            <button className="hud-btn" onClick={zoomIn} title="Zoom In" aria-label="Zoom In">
+              <ZoomIn size={14} />
+            </button>
+            <div className="hud-divider"></div>
+            <button className="hud-btn reset" onClick={resetView} title="Recenter View" aria-label="Recenter View">
+              <Maximize size={14} />
+            </button>
+          </div>
+
+          <div 
+            className="canvas-wrapper"
+            style={{ 
+              transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+              transformOrigin: "500px 200px",
+              transition: isPanning ? "none" : "transform 0.15s cubic-bezier(0.1, 0.8, 0.25, 1)"
+            }}
+          >
             {/* SVG Connections overlay behind nodes */}
             <svg className="connections-svg" width="1000" height="400">
               <defs>
@@ -634,13 +768,18 @@ export default function SimulationPage() {
           100% { transform: rotate(360deg); }
         }
 
-        /* CANVAS PANEL */
+        /* CANVAS PANEL & WHITEBOARD CANVAS */
         .canvas-panel {
           flex: 1;
           position: relative;
           min-height: 480px;
           overflow: hidden;
           background: rgba(18, 18, 22, 0.6);
+          cursor: grab;
+          user-select: none;
+        }
+        .canvas-panel.panning {
+          cursor: grabbing;
         }
         .canvas-grid-bg {
           position: absolute;
@@ -654,6 +793,60 @@ export default function SimulationPage() {
           position: relative;
           width: 100%;
           height: 100%;
+          will-change: transform;
+        }
+        
+        /* Glassmorphic Whiteboard HUD */
+        .canvas-hud {
+          position: absolute;
+          bottom: 1.25rem;
+          right: 1.25rem;
+          display: flex;
+          align-items: center;
+          background: rgba(30, 30, 36, 0.75);
+          backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          padding: 0.35rem;
+          z-index: 50;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+          pointer-events: auto;
+        }
+        .hud-btn {
+          background: transparent;
+          border: none;
+          color: #a1a1aa;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .hud-btn:hover {
+          background: rgba(255, 255, 255, 0.08);
+          color: #ffffff;
+        }
+        .hud-btn.reset:hover {
+          background: rgba(99, 102, 241, 0.15);
+          color: #a5b4fc;
+        }
+        .hud-scale {
+          font-family: monospace;
+          font-size: 0.72rem;
+          font-weight: 600;
+          color: #e4e4e7;
+          min-width: 44px;
+          text-align: center;
+          user-select: none;
+        }
+        .hud-divider {
+          width: 1px;
+          height: 16px;
+          background: rgba(255, 255, 255, 0.08);
+          margin: 0 0.25rem;
         }
         .connections-svg {
           position: absolute;

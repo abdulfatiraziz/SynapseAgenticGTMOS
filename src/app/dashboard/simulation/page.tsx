@@ -53,6 +53,43 @@ interface Playbook {
 
 const playbooks: Playbook[] = [
   {
+    id: "agent_collaboration",
+    name: "Autonomous Agent-to-Agent Campaign Launch",
+    description: "CMO Goal ──► VP PMM ──► Market Intel [Google Search Tool] ──► PMM Feedback ──► Demand Gen [Google Ads Tool] ──► Slack HITL",
+    nodes: [
+      { id: "cmo_goal", label: "CMO Request", type: "trigger", icon: Zap, x: 50, y: 180, subText: "New Campaign Goal" },
+      { id: "vp_pmm", label: "VP PMM Agent", type: "agent", icon: Cpu, x: 200, y: 180, subText: "Campaign Director" },
+      { id: "market_intel", label: "Market Intel Agent", type: "agent", icon: Cpu, x: 380, y: 80, subText: "Competitive Search" },
+      { id: "web_search", label: "Web Search Tool", type: "tool", icon: Network, x: 560, y: 80, subText: "Google Search API" },
+      { id: "demand_gen", label: "Demand Gen Agent", type: "agent", icon: Cpu, x: 560, y: 280, subText: "Ads Architect" },
+      { id: "ads_tool", label: "Google Ads Tool", type: "tool", icon: TrendingUp, x: 740, y: 280, subText: "Campaign Launch" },
+      { id: "slack_gate", label: "HITL Slack Gate", type: "gate", icon: MessageSquare, x: 900, y: 180, subText: "Campaign Approval" },
+    ],
+    connections: [
+      { from: "cmo_goal", to: "vp_pmm" },
+      { from: "vp_pmm", to: "market_intel" },
+      { from: "market_intel", to: "web_search" },
+      { from: "web_search", to: "vp_pmm" },
+      { from: "vp_pmm", to: "demand_gen" },
+      { from: "demand_gen", to: "ads_tool" },
+      { from: "ads_tool", to: "slack_gate" },
+    ],
+    steps: [
+      { nodeId: "cmo_goal", log: "CMO Trigger: Initiate target campaign for 'Consolidation & Cost Optimization' value props. Budget: $15k.", actionType: "think" },
+      { nodeId: "vp_pmm", log: "✉ VP PMM Agent delegating competitor analysis request to Market Intel Agent: 'Search for recent competitor price increases.'", actionType: "think" },
+      { nodeId: "market_intel", log: "📥 Market Intel Agent received instruction from VP PMM. Initiating Google Search query...", actionType: "think" },
+      { nodeId: "web_search", log: "⚙ [Tool Gateway] Market Intel Agent invoking Google Search API for 'B2B SaaS price increase pmm 2026'...", actionType: "call_tool" },
+      { nodeId: "web_search", log: "⚡ [Tool Gateway] Google Search returned: 'Helix.ai announced 20% seat pricing bump for Pro tier on April 1.'", actionType: "done" },
+      { nodeId: "market_intel", log: "✉ Market Intel Agent compiled competitive battlecard. Replying to VP PMM: 'Consolidation message matches Helix price hike.'", actionType: "think" },
+      { nodeId: "vp_pmm", log: "📥 VP PMM received competitor data. Synthesizing briefing doc. Delegating to Demand Gen Agent: 'Launch search campaign.'", actionType: "think" },
+      { nodeId: "demand_gen", log: "✉ Demand Gen Agent received briefing. Designing search-ads targeting 'Helix pricing contrast'. Launching draft ads...", actionType: "think" },
+      { nodeId: "ads_tool", log: "⚙ [Tool Gateway] Demand Gen Agent invoking Google Ads API to provision 'Anti-Churn search term campaign'...", actionType: "call_tool" },
+      { nodeId: "ads_tool", log: "⚡ [Tool Gateway] Google Ads returned success. Draft campaign created on ad group 'Competitor Rebuttal'.", actionType: "done" },
+      { nodeId: "slack_gate", log: "💬 [Slack HITL Gate] Awaiting final campaign review from operator to push live...", actionType: "hitl" },
+      { nodeId: "slack_gate", log: "✔ Operator approved campaign via Slack! Google Ads campaign is now live with $15,000 budget.", actionType: "done" }
+    ]
+  },
+  {
     id: "inbound_triage",
     name: "Strategic Lead Inbound Triage",
     description: "Lead Webhook ──► RevOps Lead ──► Clay Enrichment ──► SDR Personalization ──► HITL Slack Gate ──► HubSpot",
@@ -73,13 +110,13 @@ const playbooks: Playbook[] = [
     ],
     steps: [
       { nodeId: "lead_in", log: "Inbound webhook triggered: New signup from 'Arise Tech' (Annual Revenue $12M, CEO name: Sarah Jenkins).", actionType: "think" },
-      { nodeId: "revops_lead", log: "RevOps Lead Agent assessing lead metadata. Route selected: Enterprise Outbound Path.", actionType: "think" },
-      { nodeId: "clay_enrich", log: "Tool Gateway call: Querying Clay API to extract LinkedIn profile & corporate emails for Sarah Jenkins.", actionType: "call_tool" },
-      { nodeId: "clay_enrich", log: "Tool Gateway return: LinkedIn verified, corporate email matched: sjenkins@arisetech.io (Cosine similarity: 0.94)", actionType: "done" },
-      { nodeId: "sdr_manager", log: "SDR Manager Agent compiling custom outreach template using Clay corporate context.", actionType: "think" },
+      { nodeId: "revops_lead", log: "✉ RevOps Lead Agent assessing lead metadata. Delegating routing to SDR Manager Agent.", actionType: "think" },
+      { nodeId: "clay_enrich", log: "⚙ [Tool Gateway] Querying Clay API to extract LinkedIn profile & corporate emails for Sarah Jenkins.", actionType: "call_tool" },
+      { nodeId: "clay_enrich", log: "⚡ [Tool Gateway] LinkedIn verified, corporate email matched: sjenkins@arisetech.io (Cosine similarity: 0.94)", actionType: "done" },
+      { nodeId: "sdr_manager", log: "📥 SDR Manager Agent compiling custom outreach template using Clay corporate context.", actionType: "think" },
       { nodeId: "sdr_manager", log: "SDR Manager generated proposal: 'Arise Tech + Synapse Multi-Agent GTM System proposal'. Triggering Slack gate...", actionType: "call_tool" },
-      { nodeId: "slack_gate", log: "HITL GATEWAY: Paused. Awaiting manual operator approval in Slack channel...", actionType: "hitl" },
-      { nodeId: "hubspot_db", log: "Operator approved outreach. Synapse enrolling Sarah Jenkins in Apollo Sequence 4; HubSpot CRM Deal created ($45k forecast).", actionType: "done" }
+      { nodeId: "slack_gate", log: "💬 [Slack HITL Gate] Paused. Awaiting manual operator approval in Slack channel...", actionType: "hitl" },
+      { nodeId: "hubspot_db", log: "✔ Operator approved outreach. Synapse enrolling Sarah Jenkins in Apollo Sequence 4; HubSpot CRM Deal created.", actionType: "done" }
     ]
   },
   {
@@ -104,11 +141,11 @@ const playbooks: Playbook[] = [
     ],
     steps: [
       { nodeId: "alert_in", log: "Competitor alert triggered: Competitor 'Helix.ai' dropped pricing for Enterprise by 25%.", actionType: "think" },
-      { nodeId: "market_analyst", log: "Market Intelligence Analyst running web research on Helix.ai. Re-synthesizing battlecards.", actionType: "think" },
-      { nodeId: "vp_pmm", log: "VP Product Marketing building competitive response battlecard for sales teams: 'Helix pricing rebuttal'.", actionType: "think" },
-      { nodeId: "demand_ads", log: "Tool Gateway call: Launching custom search-term campaign on Google Ads targeting 'Helix pricing comparison'.", actionType: "call_tool" },
+      { nodeId: "market_analyst", log: "✉ Market Intelligence Analyst running web research. Delegating Battlecard compilation to VP PMM Agent.", actionType: "think" },
+      { nodeId: "vp_pmm", log: "📥 VP Product Marketing building competitive response battlecard for sales teams: 'Helix pricing rebuttal'.", actionType: "think" },
+      { nodeId: "demand_ads", log: "⚙ [Tool Gateway] Launching custom search-term campaign on Google Ads targeting 'Helix pricing comparison'.", actionType: "call_tool" },
       { nodeId: "content_lead", log: "Content Lead Agent generating SEO brief: 'True cost of cheap AI GTM tools: Synapse vs Helix'.", actionType: "think" },
-      { nodeId: "slack_notif", log: "HITL Gate: Competitive pricing shift playbook completed. Slack digest notification posted to CMO channel.", actionType: "done" }
+      { nodeId: "slack_notif", log: "✔ HITL Gate: Competitive pricing shift playbook completed. Slack digest notification posted to CMO channel.", actionType: "done" }
     ]
   },
   {
@@ -133,11 +170,11 @@ const playbooks: Playbook[] = [
     ],
     steps: [
       { nodeId: "renew_alert", log: "Renewals Alert triggered: Acme Corp product usage dropped 35% in last 14 days.", actionType: "think" },
-      { nodeId: "vp_cs", log: "VP Customer Success Agent recalculating customer health score. New Health Score: 42 (At-Risk Churn).", actionType: "think" },
-      { nodeId: "csm_agent", log: "Customer Success Manager Agent auditing onboarding records. Action selected: Book premium QBR.", actionType: "think" },
-      { nodeId: "slack_cs", log: "HITL Gateway alert sent to CSM Lead on Slack to request a premium check-in call with Sarah Jenkins.", actionType: "hitl" },
-      { nodeId: "expansion_ae", log: "Expansion AE Agent preparing competitive battlecard and expansion proposal based on new team seat requests.", actionType: "think" },
-      { nodeId: "hubspot_deal", log: "Acme Corp QBR booked successfully. Renewal proposal drafted. Contract status updated in HubSpot.", actionType: "done" }
+      { nodeId: "vp_cs", log: "✉ VP Customer Success Agent recalculating health score. Delegating remediation task to CSM Agent.", actionType: "think" },
+      { nodeId: "csm_agent", log: "📥 CSM Agent received task. Onboarding audited. Initiating premium QBR and Expansion AE handshake...", actionType: "think" },
+      { nodeId: "slack_cs", log: "💬 [Slack HITL CS Alert] Sent request to CSM Lead to approve premium check-in call booking.", actionType: "hitl" },
+      { nodeId: "expansion_ae", log: "✉ Expansion AE received CSM handover. Preparing competitive battlecard and seat pricing pitch.", actionType: "think" },
+      { nodeId: "hubspot_deal", log: "✔ Renewal deal and upsell contract successfully queued and updated in HubSpot CRM.", actionType: "done" }
     ]
   }
 ];
@@ -382,11 +419,21 @@ export default function SimulationPage() {
           </div>
 
           <div className="console-logs-container">
-            {consoleLogs.map((log, i) => (
-              <div key={i} className="console-log-line">
-                <span className="line-prefix">▶</span> {log}
-              </div>
-            ))}
+            {consoleLogs.map((log, i) => {
+              const isAgentToAgent = log.includes("✉") || log.includes("received") || log.includes("delegating") || log.includes("handover") || log.includes("handshake");
+              const isTool = log.includes("[Tool Gateway]") || log.includes("API") || log.includes("invoking");
+              const isSuccess = log.includes("✔") || log.includes("completed successfully") || log.includes("LIVE") || log.includes("live");
+              let logClass = "console-log-line";
+              if (isAgentToAgent) logClass += " log-agent-to-agent";
+              else if (isTool) logClass += " log-tool-call";
+              else if (isSuccess) logClass += " log-success";
+
+              return (
+                <div key={i} className={logClass}>
+                  <span className="line-prefix">▶</span> {log}
+                </div>
+              );
+            })}
             <div ref={consoleEndRef} />
           </div>
 
@@ -760,6 +807,30 @@ export default function SimulationPage() {
         .console-log-line {
           line-height: 1.45;
           word-break: break-word;
+          transition: all 0.2s;
+        }
+        .log-agent-to-agent {
+          color: #f472b6 !important;
+          font-weight: 500;
+          background: rgba(244, 114, 182, 0.06);
+          padding: 0.25rem 0.5rem;
+          border-radius: 6px;
+          border-left: 2px solid #f472b6;
+        }
+        .log-tool-call {
+          color: #60a5fa !important;
+          font-style: italic;
+          background: rgba(96, 165, 250, 0.06);
+          padding: 0.25rem 0.5rem;
+          border-radius: 6px;
+          border-left: 2px solid #60a5fa;
+        }
+        .log-success {
+          color: #34d399 !important;
+          background: rgba(52, 211, 153, 0.06);
+          padding: 0.25rem 0.5rem;
+          border-radius: 6px;
+          border-left: 2px solid #34d399;
         }
         .line-prefix {
           color: #818cf8;

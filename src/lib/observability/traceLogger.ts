@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { getSupabaseAdmin } from '../supabaseAdmin';
 
 // ─── Trace Event Types ───────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export class TraceLogger {
     }
 
     // Fire-and-forget: never block agent execution on logging
-    supabase.from('agent_traces').insert([record]).then(({ error }) => {
+    getSupabaseAdmin().from('agent_traces').insert([record]).then(({ error }) => {
       if (error) {
         // Fallback: structured console log so nothing is silently lost
         console.error('[TraceLogger] Failed to write trace to Supabase:', JSON.stringify(record));

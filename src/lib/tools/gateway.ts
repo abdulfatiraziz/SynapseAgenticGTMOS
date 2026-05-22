@@ -1,5 +1,20 @@
 import { google } from 'googleapis';
 import { supabase } from '../supabase';
+import { getSupabaseAdmin } from '../supabaseAdmin';
+
+function sanitizeEndpoint(endpoint: string): string {
+  if (typeof endpoint !== 'string') {
+    throw new Error('Endpoint must be a string.');
+  }
+  if (endpoint.includes('@') || endpoint.includes('//') || endpoint.includes('..')) {
+    throw new Error('Invalid endpoint path: SSRF or path traversal detected.');
+  }
+  let sanitized = endpoint;
+  if (!sanitized.startsWith('/')) {
+    sanitized = '/' + sanitized;
+  }
+  return sanitized;
+}
 
 // Mock Tool Implementations for Phase 1
 const toolsRegistry: Record<string, Function> = {
@@ -130,7 +145,7 @@ const toolsRegistry: Record<string, Function> = {
       }
 
       const method = params.method || 'POST';
-      const endpoint = params.endpoint || '/v1/mixed_people/api_search';
+      const endpoint = sanitizeEndpoint(params.endpoint || '/v1/mixed_people/api_search');
       
       const response = await fetch(`https://api.apollo.io${endpoint}`, {
         method,
@@ -165,7 +180,7 @@ const toolsRegistry: Record<string, Function> = {
       }
 
       const method = params.method || 'GET';
-      const endpoint = params.endpoint || '/v1/pages';
+      const endpoint = sanitizeEndpoint(params.endpoint || '/v1/pages');
       
       const response = await fetch(`https://api.notion.com${endpoint}`, {
         method,
@@ -185,7 +200,7 @@ const toolsRegistry: Record<string, Function> = {
   },
   HubSpot: async (params: any) => {
     try {
-      const { data: integration, error } = await supabase
+      const { data: integration, error } = await getSupabaseAdmin()
         .from('integrations')
         .select('access_token')
         .eq('name', 'hubspot')
@@ -214,7 +229,7 @@ const toolsRegistry: Record<string, Function> = {
       }
 
       const method = paramsMethod || 'GET';
-      const endpoint = paramsEndpoint || '/crm/v3/objects/contacts';
+      const endpoint = sanitizeEndpoint(paramsEndpoint || '/crm/v3/objects/contacts');
       
       const response = await fetch(`https://api.hubapi.com${endpoint}`, {
         method,
@@ -523,8 +538,9 @@ const toolsRegistry: Record<string, Function> = {
       if (!accessToken || !adAccountId) throw new Error("Meta Ads credentials missing.");
 
       const { endpoint, fields, time_range } = params;
+      const sanitizedEndpoint = sanitizeEndpoint(endpoint || 'insights');
       const formattedAccountId = adAccountId.startsWith('act_') ? adAccountId : `act_${adAccountId}`;
-      const url = new URL(`https://graph.facebook.com/v20.0/${formattedAccountId}/${endpoint || 'insights'}`);
+      const url = new URL(`https://graph.facebook.com/v20.0/${formattedAccountId}${sanitizedEndpoint}`);
       url.searchParams.append('access_token', accessToken);
       if (fields) url.searchParams.append('fields', fields);
       if (time_range) url.searchParams.append('time_range', JSON.stringify(time_range));
@@ -763,7 +779,7 @@ export class ToolGateway {
     console.log(`[Gateway] Agent ${agentId} requesting access to ${toolName}...`);
 
     // 1. Fetch Agent Identity & Permissions from Supabase
-    const { data: agent, error } = await supabase
+    const { data: agent, error } = await getSupabaseAdmin()
       .from('agents')
       .select('name, tools_required')
       .eq('agent_id', agentId)

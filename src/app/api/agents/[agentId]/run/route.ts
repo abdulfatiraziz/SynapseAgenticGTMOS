@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SynapseConfig, isAgentActive } from '@config';
 import { getSupabaseAdmin } from '@lib/supabaseAdmin';
+import { verifyBearerToken } from '@lib/security/authHelper';
 
 /**
  * POST /api/agents/[agentId]/run
@@ -152,6 +153,10 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ agentId: string }> }
 ) {
+  if (!verifyBearerToken(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const sbAdmin = getSupabaseAdmin();
   const { agentId } = await params;
   const taskId = req.nextUrl.searchParams.get('task_id');

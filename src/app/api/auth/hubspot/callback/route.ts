@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../../lib/supabase';
+import { getSupabaseAdmin } from '../../../../../lib/supabaseAdmin';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Store tokens in Supabase
-    const { error: dbError } = await supabase
+    const { error: dbError } = await getSupabaseAdmin()
       .from('integrations')
       .upsert({
         name: 'hubspot',

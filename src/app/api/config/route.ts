@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { SynapseConfig } from '../../../../synapse.config';
+import { verifyBearerToken } from '@lib/security/authHelper';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    if (!verifyBearerToken(request)) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { config } = body;
 

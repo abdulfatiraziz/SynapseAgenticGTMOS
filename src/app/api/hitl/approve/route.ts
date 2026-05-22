@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { HitlGateway } from '../../../../lib/hitl/hitlGateway';
+import { verifySignature, isPlaceholderOrMissingToken } from '@lib/security/authHelper';
 
 /**
  * GET /api/hitl/approve?id=<approvalId>&decision=approved|denied&by=<userId>
@@ -22,6 +23,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       { error: 'Required params: id, decision (approved|denied)' },
       { status: 400 }
+    );
+  }
+
+  const signature = req.nextUrl.searchParams.get('signature');
+  if (!verifySignature(id, decision, signature)) {
+    return NextResponse.json(
+      { error: 'Unauthorized: Invalid or missing signature' },
+      { status: 401 }
     );
   }
 
@@ -73,10 +82,35 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { approval_id, decision, decided_by, note } = body;
+    const { approval_id, decision, decided_by, note, signature } = body;
 
     if (!approval_id || !decision) {
       return NextResponse.json({ error: 'approval_id and decision required' }, { status: 400 });
+    }
+
+    // Auth verification
+    const expectedToken = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const isTokenConfigured = !isPlaceholderOrMissingToken(expectedToken);
+    
+    let isAuthorized = false;
+    if (!isTokenConfigured) {
+      isAuthorized = true;
+    } else {
+      // 1. Check Bearer token
+      const authHeader = req.headers.get('authorization');
+      if (authHeader && authHeader === `Bearer ${expectedToken}`) {
+        isAuthorized = true;
+      }
+      // 2. Check signature in body
+      if (!isAuthorized && signature) {
+        if (verifySignature(approval_id, decision, signature)) {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    if (!isAuthorized) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     await HitlGateway.recordDecision(approval_id, decision, decided_by ?? 'api', note);

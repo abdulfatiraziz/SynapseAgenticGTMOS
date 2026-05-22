@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BaseAgent } from '../../../../lib/agents/BaseAgent';
 import { SynapseConfig } from '../../../../../synapse.config';
+import { verifyBearerToken } from '@lib/security/authHelper';
 
 export const revalidate = 0; // Disable caching
 
 export async function POST(req: NextRequest) {
   try {
+    if (!verifyBearerToken(req)) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const { scenario = 'all' } = body;
 

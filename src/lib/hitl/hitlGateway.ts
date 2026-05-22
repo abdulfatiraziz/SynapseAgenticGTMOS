@@ -22,6 +22,7 @@
  */
 
 import { getSupabaseAdmin } from '../supabaseAdmin';
+import { generateSignature } from '@lib/security/authHelper';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,8 +60,10 @@ async function sendSlackApprovalRequest(
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
-  const approveUrl = `${appUrl}/api/hitl/approve?id=${approvalId}&decision=approved`;
-  const denyUrl = `${appUrl}/api/hitl/approve?id=${approvalId}&decision=denied`;
+  const approveSig = generateSignature(approvalId, 'approved');
+  const denySig = generateSignature(approvalId, 'denied');
+  const approveUrl = `${appUrl}/api/hitl/approve?id=${approvalId}&decision=approved&signature=${approveSig}`;
+  const denyUrl = `${appUrl}/api/hitl/approve?id=${approvalId}&decision=denied&signature=${denySig}`;
 
   const expiryText = `Expires at ${expiresAt.toLocaleTimeString()} (${SynapseConfig.hitl.timeout_minutes}min)`;
 

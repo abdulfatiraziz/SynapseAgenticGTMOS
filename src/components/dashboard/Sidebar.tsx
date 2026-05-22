@@ -10,10 +10,16 @@ import {
   Network,
   LogOut,
   Settings,
-  Play
+  Play,
+  ChevronLeft
 } from 'lucide-react';
 
-const Sidebar = () => {
+interface SidebarProps {
+  isCollapsed: boolean;
+  onToggle: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -59,7 +65,7 @@ const Sidebar = () => {
     : 'GT';
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="sidebar-header">
         <div className="logo">
           <div className="logo-placeholder">S</div>
@@ -68,6 +74,14 @@ const Sidebar = () => {
             <div className="logo-subtitle">GTM Motion Dashboard</div>
           </div>
         </div>
+        <button 
+          onClick={onToggle}
+          className="sidebar-collapse-btn"
+          title="Collapse Sidebar"
+          aria-label="Collapse Sidebar"
+        >
+          <ChevronLeft size={16} />
+        </button>
       </div>
       
       <nav className="sidebar-nav">

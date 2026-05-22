@@ -23,7 +23,9 @@ import {
   TrendingUp,
   ZoomIn,
   ZoomOut,
-  Maximize
+  Maximize,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 
 interface VisualNode {
@@ -1621,9 +1623,27 @@ export default function SimulationPage() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1.0);
   const [isPanning, setIsPanning] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   const panStartRef = useRef({ x: 0, y: 0 });
   const canvasPanelRef = useRef<HTMLDivElement>(null);
+
+  // Handle escape key to exit fullscreen
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isFullscreen) {
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isFullscreen]);
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(prev => !prev);
+  };
 
   // Auto scroll console to bottom without pushing/scrolling the main window
   useEffect(() => {
@@ -1923,7 +1943,7 @@ export default function SimulationPage() {
         {/* Center: Node Canvas */}
         <section 
           ref={canvasPanelRef}
-          className={`canvas-panel glass-panel ${isPanning ? 'panning' : ''}`}
+          className={`canvas-panel glass-panel ${isPanning ? 'panning' : ''} ${isFullscreen ? 'fullscreen' : ''}`}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
@@ -1946,6 +1966,15 @@ export default function SimulationPage() {
             <div className="hud-divider"></div>
             <button className="hud-btn reset" onClick={resetView} title="Recenter View" aria-label="Recenter View">
               <Maximize size={14} />
+            </button>
+            <div className="hud-divider"></div>
+            <button 
+              className={`hud-btn ${isFullscreen ? 'active' : ''}`} 
+              onClick={toggleFullscreen} 
+              title={isFullscreen ? "Exit Fullscreen" : "Enlarge Fullscreen"} 
+              aria-label={isFullscreen ? "Exit Fullscreen" : "Enlarge Fullscreen"}
+            >
+              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
             </button>
           </div>
 
@@ -2518,6 +2547,17 @@ export default function SimulationPage() {
           background: rgba(18, 18, 22, 0.6);
           cursor: grab;
           user-select: none;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .canvas-panel.fullscreen {
+          position: fixed;
+          inset: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          z-index: 1000 !important;
+          border-radius: 0 !important;
+          border: none !important;
+          background: #060810 !important;
         }
         .canvas-panel.panning {
           cursor: grabbing;

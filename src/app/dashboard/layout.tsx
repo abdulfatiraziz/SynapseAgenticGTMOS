@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Sidebar from "@/components/dashboard/Sidebar";
+import { ChevronRight } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -76,9 +77,34 @@ export default function DashboardLayout({
     );
   }
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('synapse_sidebar_collapsed');
+    if (stored === 'true') {
+      setIsSidebarCollapsed(true);
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    localStorage.setItem('synapse_sidebar_collapsed', String(newState));
+  };
+
   return (
-    <div className="app-container">
-      <Sidebar />
+    <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      <Sidebar isCollapsed={isSidebarCollapsed} onToggle={toggleSidebar} />
+      {isSidebarCollapsed && (
+        <button 
+          onClick={toggleSidebar} 
+          className="floating-sidebar-toggle"
+          title="Expand Sidebar"
+          aria-label="Expand Sidebar"
+        >
+          <ChevronRight size={18} />
+        </button>
+      )}
       <main className="main-content">
         {children}
       </main>

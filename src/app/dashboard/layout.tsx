@@ -14,6 +14,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     const user = localStorage.getItem('synapse_user');
@@ -24,6 +25,19 @@ export default function DashboardLayout({
       setCheckingAuth(false);
     }
   }, [router, pathname]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('synapse_sidebar_collapsed');
+    if (stored === 'true') {
+      setIsSidebarCollapsed(true);
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    const newState = !isSidebarCollapsed;
+    setIsSidebarCollapsed(newState);
+    localStorage.setItem('synapse_sidebar_collapsed', String(newState));
+  };
 
   if (checkingAuth || !isAuthenticated) {
     return (
@@ -76,21 +90,6 @@ export default function DashboardLayout({
       </div>
     );
   }
-
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-
-  useEffect(() => {
-    const stored = localStorage.getItem('synapse_sidebar_collapsed');
-    if (stored === 'true') {
-      setIsSidebarCollapsed(true);
-    }
-  }, []);
-
-  const toggleSidebar = () => {
-    const newState = !isSidebarCollapsed;
-    setIsSidebarCollapsed(newState);
-    localStorage.setItem('synapse_sidebar_collapsed', String(newState));
-  };
 
   return (
     <div className={`app-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>

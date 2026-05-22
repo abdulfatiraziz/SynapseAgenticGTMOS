@@ -1026,7 +1026,11 @@ export default function SimulationPage() {
                     <IconComponent size={16} />
                   </div>
                   <div className="node-content">
-                    <span className="node-lbl">{node.label}</span>
+                    <span className="node-lbl">
+                      {node.type === "agent" && "🤖 "}
+                      {node.type === "tool" && "🔧 "}
+                      {node.label}
+                    </span>
                     <span className="node-sub">{node.subText}</span>
                   </div>
                   {isGlow && <span className="node-active-pulse"></span>}
@@ -1456,6 +1460,12 @@ export default function SimulationPage() {
         }
 
         /* NODE TYPE THEMING */
+        .node-card.node-trigger { border-color: rgba(239, 68, 68, 0.15); background: rgba(239, 68, 68, 0.04); }
+        .node-card.node-agent { border-color: rgba(99, 102, 241, 0.15); background: rgba(99, 102, 241, 0.04); }
+        .node-card.node-tool { border-color: rgba(59, 130, 246, 0.15); background: rgba(59, 130, 246, 0.04); }
+        .node-card.node-gate { border-color: rgba(245, 158, 11, 0.15); background: rgba(245, 158, 11, 0.04); }
+        .node-card.node-db { border-color: rgba(16, 185, 129, 0.15); background: rgba(16, 185, 129, 0.04); }
+
         .node-trigger .node-icon-wrap { background: rgba(239, 68, 68, 0.15); color: #f87171; }
         .node-agent .node-icon-wrap { background: rgba(99, 102, 241, 0.15); color: #a5b4fc; }
         .node-tool .node-icon-wrap { background: rgba(96, 165, 250, 0.15); color: #93c5fd; }
@@ -1464,10 +1474,32 @@ export default function SimulationPage() {
 
         /* ACTIVE GLOW STATE */
         .node-card.glow {
-          border-color: #818cf8;
+          transform: scale(1.03);
+        }
+        .node-card.node-trigger.glow {
+          border-color: #ef4444;
+          background: rgba(239, 68, 68, 0.12);
+          box-shadow: 0 0 25px rgba(239, 68, 68, 0.35);
+        }
+        .node-card.node-agent.glow {
+          border-color: #6366f1;
           background: rgba(99, 102, 241, 0.12);
           box-shadow: 0 0 25px rgba(99, 102, 241, 0.35);
-          transform: scale(1.03);
+        }
+        .node-card.node-tool.glow {
+          border-color: #3b82f6;
+          background: rgba(59, 130, 246, 0.12);
+          box-shadow: 0 0 25px rgba(59, 130, 246, 0.35);
+        }
+        .node-card.node-gate.glow {
+          border-color: #f59e0b;
+          background: rgba(245, 158, 11, 0.12);
+          box-shadow: 0 0 25px rgba(245, 158, 11, 0.35);
+        }
+        .node-card.node-db.glow {
+          border-color: #10b981;
+          background: rgba(16, 185, 129, 0.12);
+          box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);
         }
         .node-active-pulse {
           position: absolute;
@@ -1477,6 +1509,12 @@ export default function SimulationPage() {
           animation: ping-node 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
           pointer-events: none;
         }
+        .node-trigger .node-active-pulse { border-color: #ef4444; }
+        .node-agent .node-active-pulse { border-color: #6366f1; }
+        .node-tool .node-active-pulse { border-color: #3b82f6; }
+        .node-gate .node-active-pulse { border-color: #f59e0b; }
+        .node-db .node-active-pulse { border-color: #10b981; }
+
         @keyframes ping-node {
           75%, 100% { transform: scale(1.1); opacity: 0; }
         }

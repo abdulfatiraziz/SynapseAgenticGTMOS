@@ -425,10 +425,10 @@ export default function DashboardHome() {
       </div>
 
       {/* Main Breakdown Section */}
-      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: '2.5fr 1fr', gap: '24px', marginTop: '24px', position: 'relative', zIndex: 10 }}>
+      <div className="dashboard-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2.5fr) minmax(0, 1fr)', gap: '24px', marginTop: '24px', position: 'relative', zIndex: 10 }}>
         
         {/* Left Column: Multi-Channel Performance Motions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
           
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -446,7 +446,7 @@ export default function DashboardHome() {
             </div>
 
             {/* Responsive Channels Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+            <div className="channels-grid" style={{ minWidth: 0 }}>
               
               {/* Motion 1: Inbound Triage */}
               <div className="channel-box" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -483,8 +483,8 @@ export default function DashboardHome() {
                   <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                     <div style={{ width: currentData.inbound.enrichment, height: '100%', background: 'var(--accent-color)' }} />
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                    <Cpu size={10} color="var(--accent-color)" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                    <Cpu size={12} color="var(--accent-color)" style={{ flexShrink: 0 }} />
                     <span>Active: RevOps, SDR Agents</span>
                   </div>
                 </div>
@@ -525,8 +525,8 @@ export default function DashboardHome() {
                   <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                     <div style={{ width: '82%', height: '100%', background: 'var(--success-color)' }} />
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                    <Cpu size={10} color="var(--success-color)" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                    <Cpu size={12} color="var(--success-color)" style={{ flexShrink: 0 }} />
                     <span>Active: Outbound SDR fleet</span>
                   </div>
                 </div>
@@ -567,8 +567,8 @@ export default function DashboardHome() {
                   <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                     <div style={{ width: currentData.paid.reach, height: '100%', background: 'var(--warning-color)' }} />
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                    <Cpu size={10} color="var(--warning-color)" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                    <Cpu size={12} color="var(--warning-color)" style={{ flexShrink: 0 }} />
                     <span>Active: CMO, Demand Gen</span>
                   </div>
                 </div>
@@ -609,8 +609,8 @@ export default function DashboardHome() {
                   <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                     <div style={{ width: currentData.partners.integrations, height: '100%', background: '#a855f7' }} />
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                    <Cpu size={10} color="#a855f7" />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '10px', fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                    <Cpu size={12} color="#a855f7" style={{ flexShrink: 0 }} />
                     <span>Active: Partnerships Agent</span>
                   </div>
                 </div>
@@ -695,7 +695,7 @@ export default function DashboardHome() {
         </div>
 
         {/* Right Column: Live AI Fleet Wins & Logs */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', minWidth: 0 }}>
           
           {/* Active AI Agent Wins Terminal */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
@@ -760,7 +760,7 @@ export default function DashboardHome() {
         <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent-color)', textTransform: 'uppercase', letterSpacing: '1px', borderRight: '1px solid var(--border-color)', paddingRight: '16px', display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
           <Database size={12} /> Live Broadcast Feed
         </span>
-        <div style={{ width: '100%', overflow: 'hidden', display: 'flex' }}>
+        <div style={{ width: '100%', overflow: 'hidden', display: 'flex', minWidth: 0 }}>
           <div className="marquee-content" style={{ display: 'flex', gap: '48px', whiteSpace: 'nowrap' }}>
             <span>⚡ SDR Agent booked a demo with CTO at CyberDyne Systems (TAM Tier 1).</span>
             <span>⚡ CMO Agent optimized campaign target search groups, increasing CTA click rate to 9.2%.</span>
@@ -949,6 +949,21 @@ export default function DashboardHome() {
         @keyframes marquee {
           0% { transform: translateX(10%); }
           100% { transform: translateX(-100%); }
+        }
+        .channels-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+        }
+        @media (max-width: 1400px) {
+          .channels-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 768px) {
+          .channels-grid {
+            grid-template-columns: minmax(0, 1fr);
+          }
         }
         .channel-box {
           transition: all 0.3s ease;

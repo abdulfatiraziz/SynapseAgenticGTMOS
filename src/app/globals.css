@@ -179,6 +179,7 @@ body {
   flex: 1;
   margin-left: 260px;
   padding: 32px;
+  min-width: 0;
 }
 
 .header-row {

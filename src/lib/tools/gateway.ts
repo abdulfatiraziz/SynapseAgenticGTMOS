@@ -16,6 +16,26 @@ function sanitizeEndpoint(endpoint: string): string {
   return sanitized;
 }
 
+const LOCAL_AGENT_REGISTRY: Record<string, { name: string; tools_required: string[] }> = {
+  '01': { name: 'Chief Marketing Officer', tools_required: ['Salesforce', 'Tableau', 'Notion', 'Klue', 'Gartner APIs'] },
+  '01b': { name: 'VP Product Marketing', tools_required: ['Klue', 'Notion', 'Highspot', 'Gong', 'Figma', 'UserTesting'] },
+  '01c': { name: 'Pricing & Packaging Manager', tools_required: ['ProfitWell', 'Excel', 'Typeform', 'Stripe', 'Tableau'] },
+  '01d': { name: 'Market Intelligence Analyst', tools_required: ['Apollo.io', 'Bombora', 'G2', 'LinkedIn Sales Navigator', 'Crayon'] },
+  '02a': { name: 'VP Sales', tools_required: ['Salesforce', 'Gong', 'Outreach', 'Clari', 'Highspot'] },
+  '02b': { name: 'Head of PLG', tools_required: ['Amplitude', 'Pendo', 'Appcues', 'Segment', 'LaunchDarkly'] },
+  '02c': { name: 'Head of Community', tools_required: ['Circle.so', 'Slack', 'Influitive', 'Zapier', 'Tribe'] },
+  '02d': { name: 'VP Partnerships', tools_required: ['PartnerStack', 'Crossbeam', 'Salesforce', 'Impartner', 'Slack'] },
+  '03a': { name: 'SDR Manager', tools_required: ['Outreach', 'Apollo.io', 'LinkedIn Sales Navigator', 'Gong', 'Salesforce', 'Clay'] },
+  '03b': { name: 'Demand Generation Manager', tools_required: ['HubSpot', '6sense', 'Google Ads', 'LinkedIn Campaign Manager', 'Triple Whale'] },
+  '03c': { name: 'Content & SEO Lead', tools_required: ['Ahrefs', 'Clearscope', 'Webflow', 'Contentful', 'Beehiiv'] },
+  '03d': { name: 'Field & Events Manager', tools_required: ['Splash', 'Goldcast', 'Cvent', 'Salesforce', 'Bizzabo'] },
+  '03e': { name: 'Head of Revenue Operations', tools_required: ['Salesforce', 'Clay', 'LeanData', 'Clari', 'Zapier', 'Tableau'] },
+  '04a': { name: 'VP Customer Success', tools_required: ['Gainsight', 'Salesforce', 'Zendesk', 'Looker', 'Gong'] },
+  '04b': { name: 'Customer Success Manager', tools_required: ['Gainsight', 'Intercom', 'Loom', 'Notion', 'Salesforce'] },
+  '04c': { name: 'Expansion Account Executive', tools_required: ['Salesforce', 'Gong', 'Clari', 'Gainsight', 'DocuSign'] },
+  '04d': { name: 'Renewals Manager', tools_required: ['ChurnZero', 'Gainsight', 'Salesforce', 'Clari', 'DocuSign'] }
+};
+
 // Mock Tool Implementations for Phase 1
 const toolsRegistry: Record<string, Function> = {
   Google: async (params: any) => {
@@ -779,14 +799,27 @@ export class ToolGateway {
     console.log(`[Gateway] Agent ${agentId} requesting access to ${toolName}...`);
 
     // 1. Fetch Agent Identity & Permissions from Supabase
-    const { data: agent, error } = await getSupabaseAdmin()
-      .from('agents')
-      .select('name, tools_required')
-      .eq('agent_id', agentId)
-      .single();
+    let agent: { name: string; tools_required: string[] } | null = null;
+    try {
+      const { data, error } = await getSupabaseAdmin()
+        .from('agents')
+        .select('name, tools_required')
+        .eq('agent_id', agentId)
+        .single();
+      
+      if (!error && data) {
+        agent = data as { name: string; tools_required: string[] };
+      }
+    } catch (err) {
+      // Ignore database errors in offline development mode
+    }
 
-    if (error || !agent) {
-      throw new Error(`[Gateway Error] Agent ${agentId} not found or database error.`);
+    if (!agent) {
+      agent = LOCAL_AGENT_REGISTRY[agentId];
+    }
+
+    if (!agent) {
+      throw new Error(`[Gateway Error] Agent ${agentId} not found.`);
     }
 
     // 2. Role-Based Access Control (RBAC) Check

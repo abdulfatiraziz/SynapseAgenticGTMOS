@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 
 const project = process.env.GCP_PROJECT_ID || '';   // Required: set GCP_PROJECT_ID in .env.local
 const location = process.env.GCP_LOCATION || 'us-central1';
+const apiKey = process.env.GEMINI_API_KEY || '';
 
 let clientInstance: any;
 
@@ -15,7 +16,18 @@ if (hasCredentials) {
       location,
     });
   } catch (err) {
-    console.warn('[vertexai] Failed to initialize GoogleGenAI client, falling back to mock client.', err);
+    console.warn('[vertexai] Failed to initialize GoogleGenAI client with Vertex AI, trying API key fallback...', err);
+  }
+}
+
+if (!clientInstance && apiKey && apiKey !== 'PASTE_YOUR_GEMINI_API_KEY') {
+  try {
+    clientInstance = new GoogleGenAI({
+      apiKey,
+    });
+    console.log('[vertexai] Initialized GoogleGenAI client using GEMINI_API_KEY (AI Studio fallback)');
+  } catch (err) {
+    console.warn('[vertexai] Failed to initialize GoogleGenAI client with GEMINI_API_KEY:', err);
   }
 }
 

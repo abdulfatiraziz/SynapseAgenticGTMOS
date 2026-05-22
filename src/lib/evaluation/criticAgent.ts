@@ -221,9 +221,13 @@ async function runLlmJudge(
 ): Promise<CriticResult> {
   // Lazily import to avoid hard dependency when running in structural-only mode
   let aiClient: any;
+  let modelName = 'gemini-2.5-pro';
   try {
-    const { aiClient: client } = await import('../vertexai');
+    const { aiClient: client, getGeminiPro } = await import('../vertexai');
     aiClient = client;
+    if (typeof getGeminiPro === 'function') {
+      modelName = getGeminiPro();
+    }
   } catch {
     console.warn('[CriticAgent] Vertex AI not available — falling back to structural mode');
     return structuralResult;
@@ -263,7 +267,7 @@ Return ONLY a JSON object with this exact structure:
 
   try {
     const response = await aiClient.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: modelName,
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

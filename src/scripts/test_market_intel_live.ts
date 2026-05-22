@@ -17,7 +17,7 @@ async function testMarketIntel() {
     Please use Apollo or your other connected tools to find exactly 1 recent news event or intent signal about a company named "Freightos" or any major logistics competitor. 
     Analyze it and provide an intent score.`;
     
-    console.log(`🤖 Agent 01d (Market Intel) is thinking using model: gemini-3-flash-preview...`);
+    console.log(`🤖 Agent 01d (Market Intel) is thinking using model: gemini-2.5-flash...`);
     const result = await marketIntel.think(prompt, {
       type: 'object',
       properties: {

@@ -19,8 +19,8 @@ async function healthCheck() {
     console.log(`✅ Supabase Connected! Found ${agents.length} agents in the database.`);
   }
 
-  // 2. Gemini 3.1 Check
-  console.log('\n🧠 Checking Gemini 3.1 Flash Lite (Vertex AI) Connection...');
+  // 2. Gemini 2.5 Check
+  console.log('\n🧠 Checking Gemini 2.5 Flash Lite (Vertex AI) Connection...');
   try {
     // Attempting the "vertexai: true" pattern
     const aiClient = new GoogleGenAI({
@@ -29,9 +29,9 @@ async function healthCheck() {
       location: process.env.GCP_LOCATION || 'us-central1',
     });
 
-    console.log('⏳ Sending test prompt to Gemini 3.1...');
+    console.log('⏳ Sending test prompt to Gemini 2.5...');
     const response = await aiClient.models.generateContent({
-      model: 'gemini-3.1-flash-lite',
+      model: 'gemini-2.5-flash-lite',
       contents: 'Verify Synapse GTM System status.',
     });
 

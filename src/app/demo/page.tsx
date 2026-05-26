@@ -366,6 +366,14 @@ export default function DemoPage() {
     return () => clearInterval(pollInterval);
   }, [isLiveMode, fetchLiveTraces]);
 
+  const handleApprove = useCallback((id: number) => {
+    setHitlQueue(q => q.filter(x => x.id !== id));
+  }, []);
+
+  const handleDeny = useCallback((id: number) => {
+    setHitlQueue(q => q.filter(x => x.id !== id));
+  }, []);
+
   if (checkingAuth || !isAuthenticated) {
     return (
       <div 
@@ -502,14 +510,6 @@ export default function DemoPage() {
       setIsRunningSimulation(false);
     }
   };
-
-  const handleApprove = useCallback((id: number) => {
-    setHitlQueue(q => q.filter(x => x.id !== id));
-  }, []);
-
-  const handleDeny = useCallback((id: number) => {
-    setHitlQueue(q => q.filter(x => x.id !== id));
-  }, []);
 
   // Class Helpers
   const statusClass = (st: AgentStatus) => {

@@ -93,10 +93,10 @@ export default function ControlCenter() {
   const [canaryV2Id, setCanaryV2Id] = useState("");
   const [canarySplit, setCanarySplit] = useState(10);
 
-  // Fetch initial config
-  useEffect(() => {
-    fetchConfig();
-  }, []);
+  const showFeedback = (text: string, type: "success" | "error") => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage(null), 5000);
+  };
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -117,10 +117,10 @@ export default function ControlCenter() {
     }
   };
 
-  const showFeedback = (text: string, type: "success" | "error") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 5000);
-  };
+  // Fetch initial config
+  useEffect(() => {
+    fetchConfig();
+  }, []);
 
   // Check if configuration has been modified
   const isDirty = () => {

@@ -57,6 +57,32 @@ const mockInitialApprovals: HITLApproval[] = [
   { id: "h2", agent_id: "Head of RevOps (03e)", tool_name: "HubSpot Write", action: "Overwrite lead source from Inbound to Direct Event", requested_at: new Date(Date.now() - 9 * 60 * 1000).toISOString(), status: "pending" }
 ];
 
+const getTraceWaterfallMetrics = (eventType: string, durationMs: number | null) => {
+  const type = eventType.toLowerCase();
+  let startOffset = 5;
+  let width = 20;
+  const duration = durationMs || Math.floor(100 + Math.random() * 200);
+
+  if (type.includes("think") || type.includes("pricing") || type.includes("scoring")) {
+    startOffset = 5;
+    width = Math.min(30, (duration / 1200) * 100);
+  } else if (type.includes("tool_call") || type.includes("enrichment") || type.includes("lookup")) {
+    startOffset = 30;
+    width = Math.min(45, (duration / 1200) * 100);
+  } else if (type.includes("tool_response") || type.includes("retrieved") || type.includes("success")) {
+    startOffset = 70;
+    width = 10;
+  } else if (type.includes("approved") || type.includes("gated") || type.includes("slack") || type.includes("notified")) {
+    startOffset = 80;
+    width = Math.min(20, (duration / 1200) * 100);
+  } else {
+    startOffset = 55;
+    width = Math.min(35, (duration / 1200) * 100);
+  }
+
+  return { startOffset, width, duration };
+};
+
 const mockInitialTraces: AgentTrace[] = [
   { agent_id: "SDR Manager (03a)", session_id: "s-882", event_type: "agent_think: lead triage decision", duration_ms: null, created_at: new Date(Date.now() - 30 * 1000).toISOString() },
   { agent_id: "Tool Gateway", session_id: "s-882", event_type: "tool_call: Clay Enrichment", duration_ms: 420, created_at: new Date(Date.now() - 28 * 1000).toISOString() },
@@ -293,7 +319,8 @@ export default function MonitoringDashboard() {
             <div className="trace-stream">
               {traces.map((t, i) => {
                 const isError = t.event_type.includes('error') || t.event_type.includes('block') || t.event_type.includes('denied');
-                const isHitl = t.event_type.includes('hitl') || t.event_type.includes('slack');
+                const isHitl = t.event_type.includes('hitl') || t.event_type.includes('slack') || t.event_type.includes('gated');
+                const waterfall = getTraceWaterfallMetrics(t.event_type, t.duration_ms);
                 
                 return (
                   <div key={i} className={`trace-item ${isError ? 'trace-error' : ''} ${isHitl ? 'trace-hitl' : ''}`}>
@@ -304,8 +331,27 @@ export default function MonitoringDashboard() {
                       <span className="trace-agent">{t.agent_id}</span>
                       <span className="trace-type">{t.event_type}</span>
                     </div>
-                    <div className="trace-metric">
-                      {t.duration_ms ? `${t.duration_ms}ms` : '—'}
+                    <div className="trace-waterfall-container" style={{
+                      height: '6px',
+                      background: 'rgba(255, 255, 255, 0.03)',
+                      borderRadius: '3px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      width: '100%',
+                      minWidth: '80px'
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        left: `${waterfall.startOffset}%`,
+                        width: `${waterfall.width}%`,
+                        height: '100%',
+                        borderRadius: '3px',
+                        background: isError ? '#ef4444' : isHitl ? '#fb923c' : '#818cf8',
+                        boxShadow: `0 0 8px ${isError ? '#ef4444' : isHitl ? '#fb923c' : '#818cf8'}`
+                      }} />
+                    </div>
+                    <div className="trace-metric" style={{ textAlign: 'right', fontFamily: 'monospace' }}>
+                      {waterfall.duration}ms
                     </div>
                   </div>
                 );
@@ -584,7 +630,7 @@ export default function MonitoringDashboard() {
         }
         .trace-item {
           display: grid;
-          grid-template-columns: 80px 1fr 60px;
+          grid-template-columns: 75px 1.5fr 1.2fr 60px;
           gap: 0.75rem;
           align-items: center;
           padding: 0.65rem 0.85rem;

@@ -67,13 +67,111 @@ const tagStyle: Record<string, { bg: string; fg: string }> = {
   gray:   { bg: "rgba(255, 255, 255, 0.05)", fg: "#d4d4d8" },
 };
 
+interface VectorMemory {
+  id: string;
+  agentId: string;
+  agentName: string;
+  query: string;
+  recallContent: string;
+  similarity: number;
+  timestamp: string;
+  tags: string[];
+}
+
+const initialMemories: VectorMemory[] = [
+  {
+    id: "mem-1",
+    agentId: "01",
+    agentName: "Chief Marketing Officer",
+    query: "competitor pricing drop strategy",
+    recallContent: "Competitor 'Warmly' announced a 20% discount on their platform tier. Strategy: target high-intent accounts with custom organic battlecards and adjust ad budgets.",
+    similarity: 0.89,
+    timestamp: "2026-05-26 14:20:05",
+    tags: ["Competitor", "Pricing"]
+  },
+  {
+    id: "mem-2",
+    agentId: "01b",
+    agentName: "Chief Strategy Officer",
+    query: "ecosystem co-selling partnership plan",
+    recallContent: "Crossbeam match identified 14 target overlaps with referral partners. Joint co-selling briefs committed to shared Notion workspace.",
+    similarity: 0.92,
+    timestamp: "2026-05-26 11:45:12",
+    tags: ["Ecosystem", "Partners"]
+  },
+  {
+    id: "mem-3",
+    agentId: "03a",
+    agentName: "SDR Manager",
+    query: "outbound sequence personalization template",
+    recallContent: "Acme Corp target lead profile retrieved from Apollo. ICP check score: 94%. Action: enroll high-priority decision makers in custom sequence.",
+    similarity: 0.85,
+    timestamp: "2026-05-25 17:10:43",
+    tags: ["Outbound", "Prospecting"]
+  },
+  {
+    id: "mem-4",
+    agentId: "04a",
+    agentName: "VP Customer Success",
+    query: "TechFlow health score drop",
+    recallContent: "TechFlow seat activity dropped 20% post QBR (satisfaction score 6/10). Action: trigger emergency customer check-in task.",
+    similarity: 0.88,
+    timestamp: "2026-05-26 09:30:19",
+    tags: ["Retention", "Churn"]
+  },
+  {
+    id: "mem-5",
+    agentId: "02b",
+    agentName: "Head of PLG",
+    query: "PQL qualification criteria rules",
+    recallContent: "Flag PQL in HubSpot when user invites more than 3 teammates within 7 days. Metric check: activation rate up by 12%.",
+    similarity: 0.94,
+    timestamp: "2026-05-26 16:04:55",
+    tags: ["PLG", "PQL"]
+  }
+];
+
 export default function InfrastructurePage() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
-  const [activeTab, setActiveTab] = useState<"telemetry" | "registry">("telemetry");
+  const [activeTab, setActiveTab] = useState<"telemetry" | "registry" | "memories">("telemetry");
   const [isCompacting, setIsCompacting] = useState(false);
+  const [totalMemories, setTotalMemories] = useState(2482);
+  const [redundantCount, setRedundantCount] = useState(42);
   const [compactionLogs, setCompactionLogs] = useState<string[]>([
     "System standby. Next compaction scheduled in 1h 42m."
   ]);
+
+  // Vector memory states
+  const [memories, setMemories] = useState<VectorMemory[]>(initialMemories);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filteredMemories, setFilteredMemories] = useState<VectorMemory[]>(initialMemories);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      setFilteredMemories(memories);
+      return;
+    }
+    const q = searchQuery.toLowerCase();
+    const results = memories.map(m => {
+      const matches = m.query.toLowerCase().includes(q) || 
+                      m.recallContent.toLowerCase().includes(q) || 
+                      m.tags.some(t => t.toLowerCase().includes(q));
+      return {
+        ...m,
+        similarity: matches ? parseFloat((0.80 + Math.random() * 0.18).toFixed(2)) : parseFloat((0.20 + Math.random() * 0.35).toFixed(2))
+      };
+    }).sort((a, b) => b.similarity - a.similarity);
+    
+    setFilteredMemories(results);
+  };
+
+  const handleDeleteMemory = (id: string) => {
+    const updated = memories.filter(m => m.id !== id);
+    setMemories(updated);
+    setFilteredMemories(prev => prev.filter(m => m.id !== id));
+    setTotalMemories(prev => Math.max(0, prev - 1));
+  };
 
   const runCompaction = () => {
     if (isCompacting) return;
@@ -94,6 +192,8 @@ export default function InfrastructurePage() {
 
     setTimeout(() => {
       setCompactionLogs(prev => ["Optimizing indexes. PGVector storage freed: 14.2 MB. Dynamic retrieval speed upgraded (+18%).", ...prev]);
+      setRedundantCount(0);
+      setTotalMemories(2440);
       setIsCompacting(false);
     }, 2800);
   };
@@ -114,6 +214,12 @@ export default function InfrastructurePage() {
             onClick={() => setActiveTab("telemetry")}
           >
             <Layers size={14} /> Telemetry & Gateway
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === "memories" ? "active" : ""}`}
+            onClick={() => setActiveTab("memories")}
+          >
+            <Database size={14} /> Vector Memory Search
           </button>
           <button 
             className={`tab-btn ${activeTab === "registry" ? "active" : ""}`}
@@ -191,11 +297,11 @@ export default function InfrastructurePage() {
                 </div>
                 <div className="metric-row">
                   <span>Recall Accuracy</span>
-                  <strong>87.2% Cosine</strong>
+                  <strong>{(memories.length > 0 ? (memories.reduce((acc, m) => acc + m.similarity, 0) / memories.length * 100) : 87.2).toFixed(1)}% Cosine</strong>
                 </div>
                 <div className="metric-row">
                   <span>Storage Used</span>
-                  <strong>164.8 MB</strong>
+                  <strong>{(totalMemories * 0.066).toFixed(1)} MB</strong>
                 </div>
               </div>
             </div>
@@ -225,6 +331,81 @@ export default function InfrastructurePage() {
             </div>
           </div>
 
+          {/* Analytics Row: Token Costs and Connection Latency */}
+          <div className="grid-two-col" style={{ marginBottom: '2rem' }}>
+            <section className="dashboard-section glass-panel">
+              <div className="section-header">
+                <div className="flex-align">
+                  <Activity className="header-icon" size={18} style={{ color: '#818cf8' }} />
+                  <h2>GTM Agent Token & Cost Tracker</h2>
+                </div>
+              </div>
+              <div className="analytics-token-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {[
+                  { agent: "🤖 Chief Marketing Officer (01)", tokens: 28900, cost: 0.58, limit: 50000, color: '#818cf8' },
+                  { agent: "🤖 Chief Strategy Officer (01b)", tokens: 18400, cost: 0.37, limit: 50000, color: '#a5b4fc' },
+                  { agent: "🤖 SDR Manager (03a)", tokens: 34200, cost: 0.68, limit: 50000, color: '#34d399' },
+                  { agent: "🤖 Head of PLG (02b)", tokens: 22800, cost: 0.46, limit: 50000, color: '#60a5fa' },
+                  { agent: "🤖 VP Customer Success (04a)", tokens: 14200, cost: 0.28, limit: 50000, color: '#bef264' }
+                ].map((a, i) => (
+                  <div key={i} className="token-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#e4e4e7' }}>
+                      <strong>{a.agent}</strong>
+                      <span style={{ color: '#a1a1aa' }}>
+                        {a.tokens.toLocaleString()} tokens / <span style={{ color: '#34d399', fontWeight: 600 }}>${a.cost.toFixed(2)}</span>
+                      </span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '3px', overflow: 'hidden', position: 'relative' }}>
+                      <div style={{
+                        width: `${(a.tokens / a.limit) * 100}%`,
+                        height: '100%',
+                        background: `linear-gradient(to right, ${a.color}, rgba(255,255,255,0.2))`,
+                        borderRadius: '3px',
+                        boxShadow: `0 0 8px ${a.color}`
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            <section className="dashboard-section glass-panel">
+              <div className="section-header">
+                <div className="flex-align">
+                  <Network className="header-icon" size={18} style={{ color: '#34d399' }} />
+                  <h2>Gateway API Connection Latencies</h2>
+                </div>
+              </div>
+              <div className="latency-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.95rem' }}>
+                {[
+                  { name: "HubSpot CRM write/sync", latency: 45, max: 150, color: '#34d399' },
+                  { name: "Apollo sequence enrollment", latency: 98, max: 150, color: '#60a5fa' },
+                  { name: "Clay data lookup & scoring", latency: 124, max: 150, color: '#fb923c' },
+                  { name: "Slack approval gateway", latency: 24, max: 150, color: '#818cf8' },
+                  { name: "Notion wiki retrieval", latency: 56, max: 150, color: '#fda4af' }
+                ].map((l, i) => (
+                  <div key={i} className="latency-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#e4e4e7' }}>
+                      <strong>{l.name}</strong>
+                      <span style={{ fontFamily: 'monospace', color: l.latency > 100 ? '#fb923c' : '#a1a1aa' }}>
+                        {l.latency}ms
+                      </span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${(l.latency / l.max) * 100}%`,
+                        height: '100%',
+                        background: `linear-gradient(to right, ${l.color}, rgba(255,255,255,0.2))`,
+                        borderRadius: '3px',
+                        boxShadow: `0 0 8px ${l.color}`
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
           {/* Bottom Columns: Memory and active tools */}
           <div className="grid-two-col">
             <section className="dashboard-section glass-panel">
@@ -246,15 +427,15 @@ export default function InfrastructurePage() {
               <div className="compactor-metrics">
                 <div className="metric-box">
                   <span className="metric-lbl">Total Memories</span>
-                  <span className="metric-val">2,482</span>
+                  <span className="metric-val">{totalMemories.toLocaleString()}</span>
                 </div>
                 <div className="metric-box">
                   <span className="metric-lbl">Average Cosine</span>
-                  <span className="metric-val">0.87</span>
+                  <span className="metric-val">{(memories.length > 0 ? (memories.reduce((acc, m) => acc + m.similarity, 0) / memories.length) : 0.87).toFixed(2)}</span>
                 </div>
                 <div className="metric-box">
                   <span className="metric-lbl">Redundant Items</span>
-                  <span className="metric-val">42 flagged</span>
+                  <span className="metric-val">{redundantCount} flagged</span>
                 </div>
                 <div className="metric-box">
                   <span className="metric-lbl">Compactor Status</span>
@@ -312,6 +493,148 @@ export default function InfrastructurePage() {
                 ))}
               </div>
             </section>
+          </div>
+        </div>
+      ) : activeTab === "memories" ? (
+        <div className="memories-layout animated-fade">
+          <div className="glass-panel">
+            <div className="section-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+              <div className="flex-align">
+                <Database className="header-icon" size={18} />
+                <h2>Long-Term Vector Memory Registry</h2>
+              </div>
+              <div className="memories-search-bar">
+                <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    placeholder="Search query embeddings (e.g. competitor pricing)..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      borderRadius: '8px',
+                      padding: '0.45rem 1rem',
+                      color: '#f4f4f5',
+                      fontSize: '0.8rem',
+                      width: '320px',
+                      outline: 'none',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    style={{
+                      background: 'rgba(99, 102, 241, 0.15)',
+                      border: '1px solid rgba(99, 102, 241, 0.3)',
+                      color: '#a5b4fc',
+                      padding: '0.45rem 1rem',
+                      borderRadius: '8px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    Search Memories
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <div className="table-wrapper" style={{ marginTop: '1.5rem' }}>
+              {filteredMemories.length > 0 ? (
+                <table className="table-data" style={{ width: '100%' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '180px' }}>Agent Owner</th>
+                      <th style={{ width: '200px' }}>Semantic Query</th>
+                      <th>Recalled Context</th>
+                      <th style={{ width: '140px', textAlign: 'center' }}>Cosine Similarity</th>
+                      <th style={{ width: '140px' }}>Timestamp</th>
+                      <th style={{ width: '60px', textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredMemories.map((m) => (
+                      <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                        <td className="highlight-cell" style={{ verticalAlign: 'top', paddingTop: '1rem' }}>
+                          <span style={{ fontWeight: 600, color: '#93c5fd' }}>{m.agentName}</span>
+                          <div style={{ fontSize: '0.65rem', color: '#71717a', fontFamily: 'monospace', marginTop: '0.1rem' }}>AGENT_{m.agentId}</div>
+                        </td>
+                        <td style={{ verticalAlign: 'top', paddingTop: '1rem', color: '#e4e4e7', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                          "{m.query}"
+                        </td>
+                        <td style={{ verticalAlign: 'top', paddingTop: '1rem', color: '#a1a1aa', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                          {m.recallContent}
+                          <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.5rem' }}>
+                            {m.tags.map(t => (
+                              <span key={t} style={{
+                                background: 'rgba(255,255,255,0.03)',
+                                border: '1px solid rgba(255,255,255,0.05)',
+                                color: '#a1a1aa',
+                                fontSize: '0.6rem',
+                                padding: '0.1rem 0.35rem',
+                                borderRadius: '4px'
+                              }}>{t}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td style={{ verticalAlign: 'top', paddingTop: '1rem', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
+                            <span style={{
+                              fontWeight: 'bold',
+                              color: m.similarity >= 0.85 ? '#34d399' : '#818cf8',
+                              fontSize: '0.8rem',
+                              fontFamily: 'monospace'
+                            }}>{m.similarity.toFixed(2)}</span>
+                            <div style={{
+                              width: '60px',
+                              height: '4px',
+                              background: 'rgba(255,255,255,0.05)',
+                              borderRadius: '2px',
+                              overflow: 'hidden'
+                            }}>
+                              <div style={{
+                                width: `${m.similarity * 100}%`,
+                                height: '100%',
+                                background: m.similarity >= 0.85 ? '#34d399' : '#818cf8',
+                                boxShadow: `0 0 8px ${m.similarity >= 0.85 ? '#34d399' : '#818cf8'}`
+                              }} />
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ verticalAlign: 'top', paddingTop: '1rem', color: '#71717a', fontSize: '0.7rem', fontFamily: 'monospace' }}>
+                          {m.timestamp}
+                        </td>
+                        <td style={{ verticalAlign: 'top', paddingTop: '0.85rem', textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleDeleteMemory(m.id)}
+                            style={{
+                              background: 'rgba(239, 68, 68, 0.1)',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
+                              color: '#fca5a5',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '6px',
+                              cursor: 'pointer',
+                              fontSize: '0.65rem',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '3rem', color: '#71717a' }}>
+                  <Database size={40} style={{ color: '#27272a', marginBottom: '1rem' }} />
+                  <h3 style={{ color: '#a1a1aa', fontSize: '0.95rem' }}>No Matching Memories Found</h3>
+                  <p style={{ fontSize: '0.8rem', maxWidth: '360px', margin: '0 auto' }}>Try adjusting your search terms or verify that your memory compactor has indexed the desired knowledge graphs.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       ) : (

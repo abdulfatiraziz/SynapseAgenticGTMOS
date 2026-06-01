@@ -67,6 +67,23 @@ if (!clientInstance) {
             coSellValueProposition: "Snowflake owns active customer relationship with Stripe. Synapse GTM OS integration with Snowflake allows Stripe to automate data sharing out-of-the-box.",
             recommendedNextStep: "Request partnership lead to trigger Slack joint introduction message with Snowflake AE."
           });
+        } else if (text.includes('keyword') || text.includes('ad-copy') || text.includes('Ahrefs') || text.includes('sem-optimizer') || text.includes('SEM')) {
+          mockResponse = JSON.stringify({
+            keyword: "AI agents for GTM",
+            volume: "8.4k",
+            difficulty: 45,
+            cpc: "$4.20",
+            headlines: [
+              "Scale Pipelines with GTM AI",
+              "Synapse Autonomous GTM OS",
+              "Qualify & Enrich Leads 24/7"
+            ],
+            descriptions: [
+              "Deploy autonomous AI agents to qualify leads, enrich account data via Clay, and sync pipelines to HubSpot in real-time.",
+              "Eliminate manual pipeline management. Integrate the 17-agent sales, marketing, and CS decision tree out-of-the-box."
+            ],
+            ctaUrl: "https://synapse.ai/demo"
+          });
         }
 
         return {

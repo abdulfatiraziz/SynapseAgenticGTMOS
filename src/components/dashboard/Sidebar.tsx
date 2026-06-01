@@ -12,7 +12,8 @@ import {
   Settings,
   Play,
   ChevronLeft,
-  Award
+  Award,
+  Globe
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { name: 'Agentic Infrastructure', icon: Database, path: '/dashboard/infrastructure', id: 'infrastructure' },
     { name: 'Live Observability', icon: Server, path: '/dashboard/monitoring', id: 'monitoring' },
     { name: 'Agency Sales Demo', icon: Award, path: '/dashboard/agency-demo', id: 'agency-demo' },
+    { name: 'SEM Ad Optimizer', icon: Globe, path: '/dashboard/sem-optimizer', id: 'sem-optimizer' },
   ];
 
 

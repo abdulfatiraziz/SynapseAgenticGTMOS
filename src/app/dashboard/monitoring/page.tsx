@@ -361,6 +361,94 @@ export default function MonitoringDashboard() {
               )}
             </div>
           </section>
+
+          <section className="glass-card scorecard-card" style={{ marginTop: '1.5rem' }}>
+            <div className="card-header">
+              <Shield size={16} className="card-icon gold" style={{ color: '#fbbf24' }} />
+              <h2>Agent-as-a-Judge Scorecard</h2>
+            </div>
+            <div className="scorecard-body" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                <div className="score-circle" style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: '50%',
+                  border: '3px solid #fbbf24',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.5rem',
+                  fontWeight: 'bold',
+                  color: '#fbbf24',
+                  boxShadow: '0 0 15px rgba(251, 191, 36, 0.3)',
+                  background: 'rgba(251, 191, 36, 0.05)',
+                  flexShrink: 0
+                }}>
+                  92%
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Trajectory Audit Status</h3>
+                  <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.8rem', color: '#a1a1aa' }}>
+                    Critic Agent (`critic`) completed audit on Q3 outbound sequence playbook run.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                    <span>Plan Quality</span>
+                    <span style={{ color: '#818cf8', fontWeight: 'bold' }}>95%</span>
+                  </div>
+                  <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ width: '95%', height: '100%', background: '#818cf8', boxShadow: '0 0 8px #818cf8' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                    <span>Tool Selection & parameterization</span>
+                    <span style={{ color: '#3b82f6', fontWeight: 'bold' }}>88%</span>
+                  </div>
+                  <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ width: '88%', height: '100%', background: '#3b82f6', boxShadow: '0 0 8px #3b82f6' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                    <span>Context Engineering & memory</span>
+                    <span style={{ color: '#a855f7', fontWeight: 'bold' }}>92%</span>
+                  </div>
+                  <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ width: '92%', height: '100%', background: '#a855f7', boxShadow: '0 0 8px #a855f7' }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.25rem' }}>
+                    <span>Operational Efficiency</span>
+                    <span style={{ color: '#10b981', fontWeight: 'bold' }}>90%</span>
+                  </div>
+                  <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ width: '90%', height: '100%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+                  </div>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'rgba(251, 191, 36, 0.05)',
+                border: '1px solid rgba(251, 191, 36, 0.1)',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                fontSize: '0.75rem',
+                color: '#fbbf24',
+                marginTop: '0.5rem'
+              }}>
+                <strong>Critic Recommendation:</strong> Redundant Apollo enrichment loops avoided. Tool parameter constraints successfully verified. Suggest matching sequence intervals to increase NRR efficiency.
+              </div>
+            </div>
+          </section>
         </div>
       </main>
 

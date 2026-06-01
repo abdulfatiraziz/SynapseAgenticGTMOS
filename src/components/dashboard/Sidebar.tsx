@@ -11,7 +11,8 @@ import {
   LogOut,
   Settings,
   Play,
-  ChevronLeft
+  ChevronLeft,
+  Award
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -53,7 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { name: 'GTM Flow Simulator', icon: Play, path: '/dashboard/simulation', id: 'simulation' },
     { name: 'Agentic Infrastructure', icon: Database, path: '/dashboard/infrastructure', id: 'infrastructure' },
     { name: 'Live Observability', icon: Server, path: '/dashboard/monitoring', id: 'monitoring' },
+    { name: 'Agency Sales Demo', icon: Award, path: '/dashboard/agency-demo', id: 'agency-demo' },
   ];
+
 
   const avatarLetters = user.name
     ? user.name

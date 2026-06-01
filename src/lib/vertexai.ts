@@ -59,6 +59,14 @@ if (!clientInstance) {
             health_status: 'excellent',
             action_taken: 'Alerted Expansion AE (04c) due to maximum usage capacity hit'
           });
+        } else if (text.includes('co-selling') || text.includes('02d') || text.includes('Snowflake') || text.includes('Overlap')) {
+          mockResponse = JSON.stringify({
+            partnerOverlapMatch: true,
+            warmIntroFeasible: true,
+            introChannel: "Slack Shared Connect Channel with Snowflake Partner Account Lead (VP of Alliances)",
+            coSellValueProposition: "Snowflake owns active customer relationship with Stripe. Synapse GTM OS integration with Snowflake allows Stripe to automate data sharing out-of-the-box.",
+            recommendedNextStep: "Request partnership lead to trigger Slack joint introduction message with Snowflake AE."
+          });
         }
 
         return {

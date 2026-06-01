@@ -61,7 +61,45 @@ async function runEvaluation() {
     console.error(error.message);
   }
 
+  console.log("\n-----------------------------------\n");
+
+  // 3. Model Armor PII Guardrail Test
+  try {
+    console.log("Test 3: Attempting PII Masking/Redaction (Model Armor PII Guardrails)");
+
+    const piiText = "My email is test.user@gmail.com and phone is +1 (555) 019-2834. " +
+                    "My OpenAI API Key is sk-abctest12345678901234567890. " +
+                    "Endpoint: https://api.hubspot.com/crm/v3/objects/contacts?hapikey=hsp_secret_key_123456";
+
+    const { SAIF } = require('../lib/security/saif');
+    const maskedText = SAIF.maskPII(piiText);
+
+    console.log(`Original Text: ${piiText}`);
+    console.log(`Masked Text:   ${maskedText}`);
+
+    // Verify all PII elements are masked
+    if (maskedText.includes("test.user@gmail.com")) {
+      throw new Error("❌ CRITICAL: SAIF failed to mask email address.");
+    }
+    if (maskedText.includes("+1 (555) 019-2834")) {
+      throw new Error("❌ CRITICAL: SAIF failed to mask phone number.");
+    }
+    if (maskedText.includes("sk-abctest12345678901234567890")) {
+      throw new Error("❌ CRITICAL: SAIF failed to mask API key.");
+    }
+    if (maskedText.includes("hsp_secret_key_123456")) {
+      throw new Error("❌ CRITICAL: SAIF failed to redact sensitive URL query param.");
+    }
+
+    console.log("✅ Model Armor PII Masking Verified Successfully!");
+
+  } catch (error: any) {
+    console.error(error.message);
+    process.exit(1);
+  }
+
   console.log("\n🎉 Security Evaluation Passed!");
 }
 
 runEvaluation();
+

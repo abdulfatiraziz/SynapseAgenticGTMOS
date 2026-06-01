@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { getSupabaseAdmin } from '../supabaseAdmin';
+import { SAIF } from '../security/saif';
 
 // ─── Trace Event Types ───────────────────────────────────────────────────────
 
@@ -21,7 +22,7 @@ export interface TraceEvent {
   agent_id: string;
   event_type: TraceEventType;
   tool_name?: string;
-  input_summary?: string;       // Truncated/hashed — never full PII
+  input_summary?: string;       // Truncated/masked via SAIF Model Armor — never full PII
   output_summary?: string;      // Summary of what came back
   duration_ms?: number;
   token_count?: number;
@@ -41,16 +42,14 @@ export function generateTraceId(): string {
   return `trc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-// ─── Input Summarizer (Never logs raw PII) ────────────────────────────────────
+// ─── Input Summarizer (Never logs raw PII, secured via SAIF Model Armor) ──────
 
 function summarizeInput(input: unknown): string {
   const str = typeof input === 'string' ? input : JSON.stringify(input);
-  // Truncate to 200 chars, never store raw email/phone patterns
-  const truncated = str.slice(0, 200);
-  return truncated.replace(
-    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi,
-    '[email]'
-  ).replace(/\b\d{10,}\b/g, '[phone]');
+  // Mask PII using SAIF Model Armor Guardrails
+  const masked = SAIF.maskPII(str);
+  // Truncate for summary logging
+  return masked.length > 200 ? masked.slice(0, 200) + '...' : masked;
 }
 
 declare global {

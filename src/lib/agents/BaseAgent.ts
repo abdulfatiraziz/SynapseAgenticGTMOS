@@ -93,6 +93,11 @@ const LOCAL_AGENT_REGISTRY: Record<string, { name: string; system_prompt: string
     name: 'Renewals Manager',
     system_prompt: 'You are the Renewals Manager agent. You ensure accounts renew on time. Pull health scores and churn predictions daily.',
     tools_required: ['ChurnZero', 'Gainsight', 'Salesforce', 'Clari', 'DocuSign']
+  },
+  'critic': {
+    name: 'Critic Agent',
+    system_prompt: 'You are the Critic Agent (Agent-as-a-Judge) for our enterprise GTM system. Review the step-by-step execution trajectory of a playbook run and grade its performance.',
+    tools_required: []
   }
 };
 

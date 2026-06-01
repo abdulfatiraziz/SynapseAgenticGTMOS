@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import { supabase } from '../supabase';
 import { getSupabaseAdmin } from '../supabaseAdmin';
+import { MemoryManager } from '../memory/memoryManager';
 
 function sanitizeEndpoint(endpoint: string): string {
   if (typeof endpoint !== 'string') {
@@ -784,6 +785,27 @@ const toolsRegistry: Record<string, Function> = {
       return { status: 'error', message: err.message };
     }
   },
+  recall_memories: async (params: any) => {
+    const { agentId, query, topK } = params;
+    if (!agentId || !query) {
+      return { status: 'error', message: 'Missing required parameters: agentId and query' };
+    }
+    const memories = await MemoryManager.recall(agentId, query, { topK });
+    return { status: 'success', data: memories };
+  },
+  store_memory: async (params: any) => {
+    const { agentId, content, type, metadata } = params;
+    if (!agentId || !content) {
+      return { status: 'error', message: 'Missing required parameters: agentId and content' };
+    }
+    const memoryId = await MemoryManager.store({
+      agentId,
+      content,
+      type: type || 'agent_decision',
+      metadata: metadata || {}
+    });
+    return { status: 'success', memory_id: memoryId };
+  },
 };
 
 export class ToolGateway {
@@ -828,7 +850,7 @@ export class ToolGateway {
     // Normalize matching (sometimes it's 'Apollo.io' vs 'Apollo')
     const isAuthorized = allowedTools.some((allowedTool: string) => 
       allowedTool.toLowerCase().includes(toolName.toLowerCase())
-    );
+    ) || toolName.toLowerCase() === 'recall_memories' || toolName.toLowerCase() === 'store_memory';
 
     if (!isAuthorized) {
       console.error(`[Security Alert] Access Denied: Agent ${agent.name} (${agentId}) attempted to use unauthorized tool: ${toolName}`);

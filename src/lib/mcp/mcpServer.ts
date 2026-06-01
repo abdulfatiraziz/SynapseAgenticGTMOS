@@ -24,7 +24,7 @@ import {
 
 // ─── Tool Definitions (MCP-compliant schemas) ─────────────────────────────────
 
-const MCP_TOOLS: Tool[] = [
+export const MCP_TOOLS: Tool[] = [
   {
     name: 'hubspot_search_contacts',
     description: 'Search HubSpot CRM for contacts matching a company, email, or property filter.',
@@ -138,7 +138,7 @@ const MCP_TOOLS: Tool[] = [
 
 // ─── Tool Handler ─────────────────────────────────────────────────────────────
 
-async function handleToolCall(name: string, args: Record<string, unknown>): Promise<unknown> {
+export async function handleToolCall(name: string, args: Record<string, unknown>): Promise<unknown> {
   // Dynamically import ToolGateway to avoid circular dep issues at startup
   const { ToolGateway } = await import('../tools/gateway');
 

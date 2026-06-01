@@ -11,7 +11,9 @@
     "e2e": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/e2e_daily_simulation.ts",
     "redteam": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/run_redteam.ts",
     "mcp:start": "npx dotenv-cli -e .env.local -- npx tsx src/lib/mcp/mcpServer.ts",
+    "mcp:sse": "npx dotenv-cli -e .env.local -- npx tsx src/lib/mcp/mcpSseServer.ts",
     "test:tools": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/test-gateway.ts",
+    "test:alignment": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/test_alignment_suite.ts",
     "test:market-intel": "npx dotenv-cli -e .env.local -- npx tsx src/scripts/test_market_intel_live.ts"
   },
   "dependencies": {

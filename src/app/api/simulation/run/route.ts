@@ -72,25 +72,20 @@ export async function POST(req: NextRequest) {
     // Scenario 1: Morning Sync (Strategy Layer)
     // ---------------------------------------------------------
     if (scenario === '1' || scenario === 1 || scenario === 'all') {
-      const cmo = new BaseAgent('01');
-      const cmoPrompt = `A major competitor, LegacyTech, just dropped their pricing by 20%. 
-      1. Delegate to Market Intel (01d) to research their new pricing page.
-      2. Delegate to VP PMM (01b) to draft a competitive response brief.
-      Use your tools to coordinate this.`;
+      const { CmoAgent } = await import('../../../../lib/agents/CmoAgent');
+      const cmo = new CmoAgent();
       
-      const cmoResult = await cmo.think(cmoPrompt, {
-        type: 'object',
-        properties: {
-          strategy: { type: 'string' },
-          delegations: { type: 'array', items: { type: 'string' } }
-        }
+      const cmoResult = await cmo.defineGtmStrategy({
+        competitor: 'LegacyTech',
+        action: 'pricing_drop',
+        amount: '20%'
       });
       results.push({
         scenario: 1,
         agent: '01',
         agentName: 'CMO Orchestrator',
         status: 'PASS',
-        summary: cmoResult.strategy,
+        summary: `GTM Strategy defined: Theme is "${cmoResult.messaging_theme}". Delegated to VP PMM (01b).`,
         raw: cmoResult
       });
     }
@@ -99,27 +94,22 @@ export async function POST(req: NextRequest) {
     // Scenario 2: Lead Routing & Outbound (Execution Layer)
     // ---------------------------------------------------------
     if (scenario === '2' || scenario === 2 || scenario === 'all') {
-      const revops = new BaseAgent('03e');
-      const revopsPrompt = `We received 3 new leads from our webinar.
-      Lead 1: VP of Ops at LogisticsCorp (Enterprise).
-      Lead 2: Intern at StartupX (SMB).
-      Lead 3: Director of Supply Chain at GlobalFreight (Mid-Market).
-      Evaluate these leads. Route Lead 1 and 3 to SDR Manager (03a) for outbound.
-      Route Lead 2 to Demand Gen (03b) for nurture. Use your tools to process this.`;
+      const { RevOpsAgent } = await import('../../../../lib/agents/RevOpsAgent');
+      const revops = new RevOpsAgent();
       
-      const revopsResult = await revops.think(revopsPrompt, {
-        type: 'object',
-        properties: {
-          routed_outbound: { type: 'number' },
-          routed_nurture: { type: 'number' }
-        }
+      const revopsResult = await revops.processInboundLead({
+        id: 'lead_991',
+        company_name: 'LogisticsCorp',
+        employee_count: 1200,
+        intent_score: 85,
+        source: 'webinar'
       });
       results.push({
         scenario: 2,
         agent: '03e',
         agentName: 'Head of Revenue Operations',
         status: 'PASS',
-        summary: `Leads routed successfully: ${revopsResult.routed_outbound} to Outbound, ${revopsResult.routed_nurture} to Nurture.`,
+        summary: `Inbound lead evaluated (Score: ${revopsResult.evaluation.score}). Routed to agent ${revopsResult.evaluation.route_to_agent_id}.`,
         raw: revopsResult
       });
     }
@@ -128,24 +118,19 @@ export async function POST(req: NextRequest) {
     // Scenario 3: Content & Social Pulse (Channels Layer)
     // ---------------------------------------------------------
     if (scenario === '3' || scenario === 3 || scenario === 'all') {
-      const seo = new BaseAgent('03c');
-      const seoPrompt = `We need a new blog post targeting 'Agentic GTM Automation'.
-      Use Ahrefs to check keyword volume, then draft a 2-paragraph brief.
-      Finally, coordinate with Community Lead (02c) to share it on Slack.`;
+      const { ContentSeoAgent } = await import('../../../../lib/agents/ContentSeoAgent');
+      const seo = new ContentSeoAgent();
       
-      const seoResult = await seo.think(seoPrompt, {
-        type: 'object',
-        properties: {
-          keyword_volume: { type: 'string' },
-          brief: { type: 'string' }
-        }
+      const seoResult = await seo.generateContentBrief({
+        messaging_theme: 'Agentic GTM Automation',
+        target_personas: ['Growth Lead', 'VP of Sales']
       });
       results.push({
         scenario: 3,
         agent: '03c',
         agentName: 'Content & SEO Lead',
         status: 'PASS',
-        summary: seoResult.brief,
+        summary: `Content brief generated for blog: "${seoResult.blog_title}". Keywords: ${seoResult.keywords.join(', ')}.`,
         raw: seoResult
       });
     }
@@ -154,24 +139,22 @@ export async function POST(req: NextRequest) {
     // Scenario 4: Customer Health Check (CS Layer)
     // ---------------------------------------------------------
     if (scenario === '4' || scenario === 4 || scenario === 'all') {
-      const vpcs = new BaseAgent('04a');
-      const csPrompt = `Run a daily health check on Acme Corp.
-      Use Gainsight/PostHog to check their adoption. 
-      If health is bad, alert CSM (04b). If they are maxing out usage, alert Expansion AE (04c).`;
+      const { VpCsAgent } = await import('../../../../lib/agents/VpCsAgent');
+      const vpcs = new VpCsAgent();
       
-      const csResult = await vpcs.think(csPrompt, {
-        type: 'object',
-        properties: {
-          health_status: { type: 'string' },
-          action_taken: { type: 'string' }
-        }
+      const csResult = await vpcs.reviewChurnEscalation({
+        account_id: 'acme_101',
+        company_name: 'Acme Corp',
+        health_status: 'Red',
+        days_until_renewal: 60,
+        arr: 120000
       });
       results.push({
         scenario: 4,
         agent: '04a',
         agentName: 'VP Customer Success',
         status: 'PASS',
-        summary: csResult.action_taken,
+        summary: `Executive action taken: ${csResult.action}. Rationale: ${csResult.rationale}`,
         raw: csResult
       });
     }

@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class CmoAgent extends BaseAgent {
-  constructor() {
-    super('01'); // 01 is the Chief Marketing Officer
+  constructor(sessionId?: string) {
+    super('01', sessionId); // 01 is the Chief Marketing Officer
   }
 
   /**
@@ -51,7 +51,7 @@ export class CmoAgent extends BaseAgent {
       description: `CMO has finalized the strategy. Theme: ${strategy.messaging_theme}. Please create product narratives and battlecards.`,
       priority: 'high',
       input_data: strategy
-    });
+    }, this.sessionId);
 
     return strategy;
   }

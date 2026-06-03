@@ -1,8 +1,8 @@
 import { BaseAgent } from './BaseAgent';
 
 export class FieldEventsAgent extends BaseAgent {
-  constructor() {
-    super('03d'); // 03d is the Field & Events Manager
+  constructor(sessionId?: string) {
+    super('03d', sessionId); // 03d is the Field & Events Manager
   }
 
   /**

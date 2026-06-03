@@ -1,8 +1,8 @@
 import { BaseAgent } from './BaseAgent';
 
 export class RenewalsManagerAgent extends BaseAgent {
-  constructor() {
-    super('04d'); // 04d is the Renewals Manager
+  constructor(sessionId?: string) {
+    super('04d', sessionId); // 04d is the Renewals Manager
   }
 
   /**

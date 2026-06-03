@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class MarketIntelAgent extends BaseAgent {
-  constructor() {
-    super('01d'); // 01d is the Market Intelligence Analyst
+  constructor(sessionId?: string) {
+    super('01d', sessionId); // 01d is the Market Intelligence Analyst
   }
 
   /**
@@ -64,7 +64,7 @@ export class MarketIntelAgent extends BaseAgent {
         description: `Market Intel generated an intent score of ${analysis.intent_score}.`,
         priority: analysis.intent_score > 80 ? 'high' : 'medium',
         input_data: leadPayload
-      });
+      }, this.sessionId);
       taskId = task.id;
     } else {
       console.log(`[Market Intel] Signal ignored. Intent score below threshold.`);

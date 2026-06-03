@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class CommunityAgent extends BaseAgent {
-  constructor() {
-    super('02c'); // 02c is the Head of Community
+  constructor(sessionId?: string) {
+    super('02c', sessionId); // 02c is the Head of Community
   }
 
   /**
@@ -46,7 +46,7 @@ export class CommunityAgent extends BaseAgent {
         description: evaluation.rationale,
         priority: 'medium',
         input_data: signalData
-      });
+      }, this.sessionId);
     } else if (evaluation.decision === 'invite_to_advocacy_program') {
       await this.useTool('Zapier', {
         action: 'TRIGGER_WEBHOOK',

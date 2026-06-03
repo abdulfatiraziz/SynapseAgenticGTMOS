@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class DemandGenAgent extends BaseAgent {
-  constructor() {
-    super('03b'); // 03b is the Demand Gen Manager
+  constructor(sessionId?: string) {
+    super('03b', sessionId); // 03b is the Demand Gen Manager
   }
 
   /**
@@ -52,7 +52,7 @@ export class DemandGenAgent extends BaseAgent {
         description: evaluation.rationale,
         priority: 'high',
         input_data: mqlData
-      });
+      }, this.sessionId);
     }
 
     return evaluation;

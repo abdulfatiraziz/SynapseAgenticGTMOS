@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class PlgAgent extends BaseAgent {
-  constructor() {
-    super('02b'); // 02b is the Head of PLG
+  constructor(sessionId?: string) {
+    super('02b', sessionId); // 02b is the Head of PLG
   }
 
   /**
@@ -57,7 +57,7 @@ export class PlgAgent extends BaseAgent {
         description: `Account has hit product limits or activation milestones. Rationale: ${evaluation.rationale}`,
         priority: 'high',
         input_data: telemetryData
-      });
+      }, this.sessionId);
     } else if (evaluation.decision === 'trigger_in_app_flow') {
       console.log(`[Head of PLG Agent] Triggering Appcues flow to drive adoption...`);
       await this.useTool('Appcues', {

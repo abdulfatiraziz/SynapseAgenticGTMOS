@@ -11,8 +11,8 @@ export interface TraceAuditScorecard {
 }
 
 export class CriticAgent extends BaseAgent {
-  constructor() {
-    super('critic'); // 'critic' is the Critic Agent (Agent-as-a-Judge)
+  constructor(sessionId?: string) {
+    super('critic', sessionId); // 'critic' is the Critic Agent (Agent-as-a-Judge)
   }
 
   /**

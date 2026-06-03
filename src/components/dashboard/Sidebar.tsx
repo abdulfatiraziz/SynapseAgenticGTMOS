@@ -13,7 +13,11 @@ import {
   Play,
   ChevronLeft,
   Award,
-  Globe
+  Globe,
+  Activity,
+  Share2,
+  Users,
+  Calendar
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -57,6 +61,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { name: 'Live Observability', icon: Server, path: '/dashboard/monitoring', id: 'monitoring' },
     { name: 'Agency Sales Demo', icon: Award, path: '/dashboard/agency-demo', id: 'agency-demo' },
     { name: 'SEM Ad Optimizer', icon: Globe, path: '/dashboard/sem-optimizer', id: 'sem-optimizer' },
+    { name: 'PQL Triage', icon: Activity, path: '/dashboard/plg-triage', id: 'plg-triage' },
+    { name: 'Ecosystem Co-Sell', icon: Share2, path: '/dashboard/partner-cosell', id: 'partner-cosell' },
+    { name: 'Community Signals', icon: Users, path: '/dashboard/community-signals', id: 'community-signals' },
+    { name: 'Webinar Follow-Up', icon: Calendar, path: '/dashboard/event-pipeline', id: 'event-pipeline' },
   ];
 
 

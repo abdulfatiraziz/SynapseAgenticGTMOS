@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class ContentSeoAgent extends BaseAgent {
-  constructor() {
-    super('03c'); // 03c is the Content & SEO Lead
+  constructor(sessionId?: string) {
+    super('03c', sessionId); // 03c is the Content & SEO Lead
   }
 
   /**

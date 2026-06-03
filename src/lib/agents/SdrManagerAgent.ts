@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class SdrManagerAgent extends BaseAgent {
-  constructor() {
-    super('03a'); // 03a is the SDR Manager
+  constructor(sessionId?: string) {
+    super('03a', sessionId); // 03a is the SDR Manager
   }
 
   /**

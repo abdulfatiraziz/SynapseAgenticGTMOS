@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class CsmAgent extends BaseAgent {
-  constructor() {
-    super('04b'); // 04b is the Customer Success Manager
+  constructor(sessionId?: string) {
+    super('04b', sessionId); // 04b is the Customer Success Manager
   }
 
   /**
@@ -57,7 +57,7 @@ export class CsmAgent extends BaseAgent {
         description: evaluation.rationale,
         priority: 'high',
         input_data: healthData
-      });
+      }, this.sessionId);
     } else if (evaluation.action === 'route_to_expansion') {
       console.log(`[CSM Agent] Routing expansion signal to Expansion AE (04c)...`);
       await Orchestrator.dispatchTask(this.agentId, '04c', {
@@ -65,7 +65,7 @@ export class CsmAgent extends BaseAgent {
         description: evaluation.rationale,
         priority: 'medium',
         input_data: healthData
-      });
+      }, this.sessionId);
     }
 
     return evaluation;

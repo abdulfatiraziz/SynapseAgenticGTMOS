@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class VpPartnershipsAgent extends BaseAgent {
-  constructor() {
-    super('02d'); // 02d is the VP Partnerships
+  constructor(sessionId?: string) {
+    super('02d', sessionId); // 02d is the VP Partnerships
   }
 
   /**
@@ -45,7 +45,7 @@ export class VpPartnershipsAgent extends BaseAgent {
         description: `Partner ${overlapData.partner_name} has a strong relationship here. Let's co-sell. Rationale: ${evaluation.rationale}`,
         priority: 'high',
         input_data: overlapData
-      });
+      }, this.sessionId);
     }
 
     // Log to Partner portal

@@ -1,8 +1,8 @@
 import { BaseAgent } from './BaseAgent';
 
 export class PricingManagerAgent extends BaseAgent {
-  constructor() {
-    super('01c'); // 01c is the Pricing & Packaging Manager
+  constructor(sessionId?: string) {
+    super('01c', sessionId); // 01c is the Pricing & Packaging Manager
   }
 
   /**

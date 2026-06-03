@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class VpSalesAgent extends BaseAgent {
-  constructor() {
-    super('02a'); // 02a is the VP Sales
+  constructor(sessionId?: string) {
+    super('02a', sessionId); // 02a is the VP Sales
   }
 
   /**

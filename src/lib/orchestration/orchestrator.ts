@@ -150,12 +150,22 @@ export class Orchestrator {
   private static inferTaskType(receiverId: string, payload: TaskPayload): string {
     const defaults: Record<string, string> = {
       '01':  'defineGtmStrategy',
-      '01b': 'createBattlecard',
+      '01b': 'createMessagingFramework',
+      '01c': 'evaluateDiscountRequest',
       '01d': 'processMarketSignal',
+      '02a': 'reviewEnterprisePipeline',
       '02b': 'evaluateProductTelemetry',
+      '02c': 'processCommunitySignal',
+      '02d': 'processPartnerOverlap',
       '03a': 'processAssignedAccount',
+      '03b': 'evaluateInboundMQL',
       '03c': 'generateContentBrief',
-      '03e': 'triageLead',
+      '03d': 'processEventAttendees',
+      '03e': 'processInboundLead',
+      '04a': 'reviewChurnEscalation',
+      '04b': 'processHealthAlert',
+      '04c': 'processExpansionSignal',
+      '04d': 'processUpcomingRenewal',
     };
     return defaults[receiverId] ?? 'run';
   }

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, waitUntil } from 'next/server';
 import { SynapseConfig, isAgentActive } from '@config';
 import { getSupabaseAdmin } from '@lib/supabaseAdmin';
 import { verifyBearerToken } from '@lib/security/authHelper';
@@ -31,12 +31,22 @@ const AGENT_REGISTRY: Record<string, {
   methods: string[];
 }> = {
   '01':  { importPath: '../../lib/agents/CmoAgent',          className: 'CmoAgent',          methods: ['defineGtmStrategy'] },
-  '01b': { importPath: '../../lib/agents/VpPmmAgent',        className: 'VpPmmAgent',        methods: ['createBattlecard'] },
+  '01b': { importPath: '../../lib/agents/VpPmmAgent',        className: 'VpPmmAgent',        methods: ['createMessagingFramework'] },
+  '01c': { importPath: '../../lib/agents/PricingManagerAgent',className: 'PricingManagerAgent',methods: ['evaluateDiscountRequest'] },
   '01d': { importPath: '../../lib/agents/MarketIntelAgent',  className: 'MarketIntelAgent',  methods: ['processMarketSignal'] },
+  '02a': { importPath: '../../lib/agents/VpSalesAgent',       className: 'VpSalesAgent',       methods: ['reviewEnterprisePipeline'] },
   '02b': { importPath: '../../lib/agents/PlgAgent',          className: 'PlgAgent',          methods: ['evaluateProductTelemetry'] },
+  '02c': { importPath: '../../lib/agents/CommunityAgent',    className: 'CommunityAgent',    methods: ['processCommunitySignal'] },
+  '02d': { importPath: '../../lib/agents/VpPartnershipsAgent',className: 'VpPartnershipsAgent',methods: ['processPartnerOverlap'] },
   '03a': { importPath: '../../lib/agents/SdrManagerAgent',   className: 'SdrManagerAgent',   methods: ['processAssignedAccount'] },
+  '03b': { importPath: '../../lib/agents/DemandGenAgent',    className: 'DemandGenAgent',    methods: ['evaluateInboundMQL'] },
   '03c': { importPath: '../../lib/agents/ContentSeoAgent',   className: 'ContentSeoAgent',   methods: ['generateContentBrief'] },
-  '03e': { importPath: '../../lib/agents/RevOpsAgent',       className: 'RevOpsAgent',       methods: ['triageLead'] },
+  '03d': { importPath: '../../lib/agents/FieldEventsAgent',   className: 'FieldEventsAgent',   methods: ['processEventAttendees'] },
+  '03e': { importPath: '../../lib/agents/RevOpsAgent',       className: 'RevOpsAgent',       methods: ['processInboundLead'] },
+  '04a': { importPath: '../../lib/agents/VpCsAgent',         className: 'VpCsAgent',         methods: ['reviewChurnEscalation'] },
+  '04b': { importPath: '../../lib/agents/CsmAgent',          className: 'CsmAgent',          methods: ['processHealthAlert'] },
+  '04c': { importPath: '../../lib/agents/ExpansionAeAgent',   className: 'ExpansionAeAgent',   methods: ['processExpansionSignal'] },
+  '04d': { importPath: '../../lib/agents/RenewalsManagerAgent',className: 'RenewalsManagerAgent',methods: ['processUpcomingRenewal'] },
 };
 
 export async function POST(
@@ -135,12 +145,19 @@ export async function POST(
 
   const taskId = taskRow.id;
 
-  // ── Execute agent async (don't block the response) ──────────────────────────
-  (sbAdmin as any).from('agent_tasks').update({ status: 'running', started_at: new Date().toISOString() }).eq('id', taskId);
+  // ── Execute agent async (don't block the response, protected by waitUntil) ──
+  const updateRunningPromise = (sbAdmin as any).from('agent_tasks').update({ status: 'running', started_at: new Date().toISOString() }).eq('id', taskId);
 
-  executeAgent(targetAgentId, agentDef, task_type, input_data, session_id, taskId, sbAdmin).catch(err => {
-    console.error(`[A2A] Agent ${targetAgentId} execution failed:`, err);
-  });
+  const executionPromise = (async () => {
+    await updateRunningPromise;
+    try {
+      await executeAgent(targetAgentId, agentDef, task_type, input_data, session_id, taskId, sbAdmin);
+    } catch (err) {
+      console.error(`[A2A] Agent ${targetAgentId} execution failed:`, err);
+    }
+  })();
+
+  waitUntil(executionPromise);
 
   return NextResponse.json(
     { task_id: taskId, status: 'running', agent_id: targetAgentId, task_type, original_agent_id: originalAgentId },

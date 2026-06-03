@@ -59,7 +59,7 @@ if (!clientInstance) {
             health_status: 'excellent',
             action_taken: 'Alerted Expansion AE (04c) due to maximum usage capacity hit'
           });
-        } else if (text.includes('co-selling') || text.includes('02d') || text.includes('Snowflake') || text.includes('Overlap')) {
+        } else if (text.includes('co-selling') || text.includes('02d') || text.includes('Snowflake') || text.includes('Overlap') || text.includes('Crossbeam')) {
           mockResponse = JSON.stringify({
             partnerOverlapMatch: true,
             warmIntroFeasible: true,
@@ -83,6 +83,30 @@ if (!clientInstance) {
               "Eliminate manual pipeline management. Integrate the 17-agent sales, marketing, and CS decision tree out-of-the-box."
             ],
             ctaUrl: "https://synapse.ai/demo"
+          });
+        } else if (text.includes('plg') || text.includes('amplitude') || text.includes('PQL') || text.includes('02b')) {
+          mockResponse = JSON.stringify({
+            isQualified: true,
+            score: 94,
+            matchedConstraints: "Workspace invites (8) > 5, features used (6) > 3",
+            suggestedAction: "Enrich via Clay and create Enterprise Upsell Deal in HubSpot CRM",
+            assignee: "Expansion AE (04c)"
+          });
+        } else if (text.includes('community') || text.includes('Discord') || text.includes('02c') || text.includes('forum')) {
+          mockResponse = JSON.stringify({
+            resolved: true,
+            category: "Technical Support",
+            ambassadorScore: 88,
+            suggestedAnswer: "Hey there! Yes, Synapse GTM OS fully supports remote Server-Sent Events (SSE) connections. You can expose any agent by calling toA2a(agent, port) and mapping the route dynamically inside Next.js API networks. Let us know if you need our sample deployment template!",
+            followUpAction: "Notify SDR Manager to flag as high-intent builder account"
+          });
+        } else if (text.includes('webinar') || text.includes('no-show') || text.includes('event') || text.includes('03d')) {
+          mockResponse = JSON.stringify({
+            noShowCount: 142,
+            tier1NoShows: ["cyberdyne.com", "weyland-yutani.com"],
+            followUpSubject: "Missed you at our GTM Automation Briefing",
+            followUpTemplate: "Hi {{First_Name}},\n\nSorry you couldn't make it to our live session. We covered how autonomous AI agents automate Apollo lookup and Clay enrichments. Here is your custom replay link: https://synapse.ai/replay\n\nBest,\nField Operations Team",
+            nextStep: "Trigger custom cold SDR sequence via Apollo.io"
           });
         }
 

@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class VpPmmAgent extends BaseAgent {
-  constructor() {
-    super('01b'); // 01b is the VP Product Marketing
+  constructor(sessionId?: string) {
+    super('01b', sessionId); // 01b is the VP Product Marketing
   }
 
   /**
@@ -52,7 +52,7 @@ export class VpPmmAgent extends BaseAgent {
       description: `VP PMM has updated the messaging framework. Please update your outbound sequences to use this new elevator pitch.`,
       priority: 'medium',
       input_data: messaging
-    });
+    }, this.sessionId);
 
     return messaging;
   }

@@ -1,8 +1,8 @@
 import { BaseAgent } from './BaseAgent';
 
 export class ExpansionAeAgent extends BaseAgent {
-  constructor() {
-    super('04c'); // 04c is the Expansion Account Executive
+  constructor(sessionId?: string) {
+    super('04c', sessionId); // 04c is the Expansion Account Executive
   }
 
   /**

@@ -1,8 +1,8 @@
 import { BaseAgent } from './BaseAgent';
 
 export class VpCsAgent extends BaseAgent {
-  constructor() {
-    super('04a'); // 04a is the VP of Customer Success
+  constructor(sessionId?: string) {
+    super('04a', sessionId); // 04a is the VP of Customer Success
   }
 
   /**

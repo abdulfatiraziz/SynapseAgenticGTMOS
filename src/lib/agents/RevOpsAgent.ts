@@ -2,8 +2,8 @@ import { BaseAgent } from './BaseAgent';
 import { Orchestrator } from '../orchestration/orchestrator';
 
 export class RevOpsAgent extends BaseAgent {
-  constructor() {
-    super('03e'); // 03e is the agent_id for Head of RevOps
+  constructor(sessionId?: string) {
+    super('03e', sessionId); // 03e is the agent_id for Head of RevOps
   }
 
   /**
@@ -53,7 +53,7 @@ export class RevOpsAgent extends BaseAgent {
       description: evaluation.decision,
       priority: evaluation.score > 80 ? 'high' : 'medium',
       input_data: leadData
-    });
+    }, this.sessionId);
 
     return {
       evaluation,

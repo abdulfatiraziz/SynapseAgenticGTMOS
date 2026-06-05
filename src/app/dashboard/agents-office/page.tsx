@@ -9,7 +9,9 @@ import {
   Terminal,
   Users,
   Moon,
-  Sun
+  Sun,
+  Home,
+  PhoneCall
 } from 'lucide-react';
 
 // Tile types:
@@ -89,6 +91,7 @@ interface Agent {
   dialogueTimer: number;
   activity: string;
   shortLabel: string;
+  path?: { x: number; y: number }[];
 }
 
 // 2D Projection settings
@@ -1345,7 +1348,7 @@ export default function AgentsOfficePage() {
   const [bubbleInputs, setBubbleInputs] = useState<Record<string, string>>({});
 
   // Boardroom debate & Live office states
-  const [agentPaths, setAgentPaths] = useState<Record<string, { x: number; y: number }[]>>({});
+
   const [boardroomState, setBoardroomState] = useState<'idle' | 'gathering' | 'in_meeting' | 'dispersing'>('idle');
   const [debateHistory, setDebateHistory] = useState<Array<{ role: string; text: string }>>([]);
   const [debateSpeakerIndex, setDebateSpeakerIndex] = useState<number>(-1);
@@ -1458,84 +1461,83 @@ export default function AgentsOfficePage() {
     }
   };
 
-  // Helper to assign walking paths to multiple agents
+  // Helper to assign walking paths to multiple agents directly inside agent objects
   const walkMultipleAgents = (targets: { id: string; x: number; y: number }[]) => {
-    setAgentPaths(prev => {
-      const nextPaths = { ...prev };
-      
-      setAgents(prevAgents => {
-        return prevAgents.map(a => {
-          const target = targets.find(t => t.id === a.id);
-          if (target) {
-            const path = findPath(a.x, a.y, target.x, target.y);
-            if (path && path.length > 0) {
-              nextPaths[a.id] = path;
-            }
+    setAgents(prevAgents => {
+      return prevAgents.map(a => {
+        const target = targets.find(t => t.id === a.id);
+        if (target) {
+          const path = findPath(a.x, a.y, target.x, target.y);
+          if (path && path.length > 0) {
+            return { ...a, path };
           }
-          return a;
-        });
+        }
+        return a;
       });
-      
-      return nextPaths;
     });
   };
 
-  // Agent Pathfinding Walker Loop (cell-by-cell moves based on queued paths)
+  // Agent Pathfinding Walker Loop (cell-by-cell moves based on queued paths inside agent objects)
   useEffect(() => {
-    if (Object.keys(agentPaths).length === 0) return;
+    if (!simRunning) return;
 
     const intervalTime = 180 / simSpeed;
     const agentWalkInterval = setInterval(() => {
-      let hasActivePaths = false;
+      setAgents(prevAgents => {
+        let updated = false;
+        const nextAgents = prevAgents.map(a => {
+          if (a.path && a.path.length > 0) {
+            const nextStep = a.path[0];
+            const remaining = a.path.slice(1);
 
-      setAgentPaths(prevPaths => {
-        const nextPaths = { ...prevPaths };
-        
-        setAgents(prevAgents => {
-          let updated = false;
-          const nextAgents = prevAgents.map(a => {
-            const path = nextPaths[a.id];
-            if (path && path.length > 0) {
-              const nextStep = path[0];
-              const remaining = path.slice(1);
-              if (remaining.length === 0) {
-                delete nextPaths[a.id];
-              } else {
-                nextPaths[a.id] = remaining;
-                hasActivePaths = true;
+            let dir = a.direction;
+            if (nextStep.x > a.x) dir = 'right';
+            else if (nextStep.x < a.x) dir = 'left';
+            else if (nextStep.y > a.y) dir = 'down';
+            else if (nextStep.y < a.y) dir = 'up';
+
+            let dialogue = a.dialogue;
+            let dialogueTimer = a.dialogueTimer;
+            let status = a.status;
+
+            // Handle arrival triggers
+            if (remaining.length === 0) {
+              if (nextStep.x === 3 && nextStep.y === 12) {
+                dialogue = "Yes, Admin? Ready to sync.";
+                dialogueTimer = 8;
+                status = 'talking';
+              } else if (nextStep.x === a.homeX && nextStep.y === a.homeY) {
+                dialogue = "Back at my desk.";
+                dialogueTimer = 4;
+                status = 'working';
               }
-
-              let dir = a.direction;
-              if (nextStep.x > a.x) dir = 'right';
-              else if (nextStep.x < a.x) dir = 'left';
-              else if (nextStep.y > a.y) dir = 'down';
-              else if (nextStep.y < a.y) dir = 'up';
-
-              updated = true;
-              return {
-                ...a,
-                x: nextStep.x,
-                y: nextStep.y,
-                direction: dir,
-                isMoving: true
-              };
-            } else if (a.isMoving) {
-              updated = true;
-              return { ...a, isMoving: false };
             }
-            return a;
-          });
 
-          return updated ? nextAgents : prevAgents;
+            updated = true;
+            return {
+              ...a,
+              x: nextStep.x,
+              y: nextStep.y,
+              direction: dir,
+              isMoving: true,
+              path: remaining,
+              dialogue,
+              dialogueTimer,
+              status
+            };
+          } else if (a.isMoving) {
+            updated = true;
+            return { ...a, isMoving: false };
+          }
+          return a;
         });
 
-        if (!hasActivePaths) return {};
-        return nextPaths;
+        return updated ? nextAgents : prevAgents;
       });
     }, intervalTime);
 
     return () => clearInterval(agentWalkInterval);
-  }, [agentPaths, simSpeed]);
+  }, [simRunning, simSpeed]);
 
   // Boardroom Meeting gathering detector: triggers 'in_meeting' once VPs arrive
   useEffect(() => {
@@ -3749,6 +3751,82 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                   <Zap size={12} />
                   Force Override Dispatch Task
                 </button>
+
+                {/* Call to Admin Cabin / Send Back Button */}
+                {(() => {
+                  const isSummoned = activeAgent.x === 3 && activeAgent.y === 12;
+                  return (
+                    <button
+                      onClick={() => {
+                        if (isSummoned) {
+                          // Dismiss back to home Cabin
+                          walkMultipleAgents([{ id: activeAgent.id, x: activeAgent.homeX, y: activeAgent.homeY }]);
+                          setAgents(prev => prev.map(a => {
+                            if (a.id === activeAgent.id) {
+                              return {
+                                ...a,
+                                status: 'working',
+                                dialogue: "Returning to my work desk.",
+                                dialogueTimer: 4
+                              };
+                            }
+                            return a;
+                          }));
+                          addLog(`📞 Summon: Dismissed ${activeAgent.name} back to home cabin.`);
+                        } else {
+                          // Summon to Admin Cabin guest seat
+                          walkMultipleAgents([{ id: activeAgent.id, x: 3, y: 12 }]);
+                          setAgents(prev => prev.map(a => {
+                            if (a.id === activeAgent.id) {
+                              return {
+                                ...a,
+                                status: 'talking',
+                                dialogue: "Heading to your cabin, Admin.",
+                                dialogueTimer: 4
+                              };
+                            }
+                            return a;
+                          }));
+                          addLog(`📞 Summon: Calling ${activeAgent.name} to the Admin Cabin.`);
+                        }
+                      }}
+                      style={{
+                        width: '100%',
+                        background: isSummoned 
+                          ? 'linear-gradient(135deg, #4b5563, #374151)' 
+                          : 'linear-gradient(135deg, #10b981, #059669)',
+                        border: 'none',
+                        color: 'white',
+                        padding: '8px 14px',
+                        borderRadius: '10px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: isSummoned 
+                          ? '0 4px 15px rgba(0, 0, 0, 0.25)' 
+                          : '0 4px 15px rgba(16, 185, 129, 0.25)',
+                        transition: 'all 0.2s',
+                        marginTop: '8px'
+                      }}
+                    >
+                      {isSummoned ? (
+                        <>
+                          <Home size={12} />
+                          Send Back to Work Cabin
+                        </>
+                      ) : (
+                        <>
+                          <PhoneCall size={12} />
+                          Call to Admin Cabin
+                        </>
+                      )}
+                    </button>
+                  );
+                })()}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '220px', color: 'var(--text-secondary)', textAlign: 'center' }}>

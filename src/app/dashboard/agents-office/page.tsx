@@ -1339,6 +1339,107 @@ export default function AgentsOfficePage() {
   ]);
   const [simRunning, setSimRunning] = useState<boolean>(true);
 
+  // Interactive bubble states
+  const [activeAgentChats, setActiveAgentChats] = useState<Record<string, Array<{sender: 'user' | 'agent', text: string}>>>({});
+  const [agentThinkingState, setAgentThinkingState] = useState<Record<string, boolean>>({});
+  const [bubbleInputs, setBubbleInputs] = useState<Record<string, string>>({});
+
+  const handleBubbleSubmit = async (agentId: string, text: string) => {
+    if (!text.trim()) return;
+
+    // Clear input
+    setBubbleInputs(prev => ({ ...prev, [agentId]: '' }));
+
+    // Set loading state
+    setAgentThinkingState(prev => ({ ...prev, [agentId]: true }));
+
+    // Add user message to history
+    const userMsg = { sender: 'user' as const, text };
+    const history = activeAgentChats[agentId] || [];
+    const updatedHistory = [...history, userMsg];
+    setActiveAgentChats(prev => ({
+      ...prev,
+      [agentId]: updatedHistory
+    }));
+
+    // Set agent dialogue temporarily to what user said
+    setAgents(prev => prev.map(a => {
+      if (a.id === agentId) {
+        return {
+          ...a,
+          dialogue: `💬 User: "${text}"`,
+          dialogueTimer: 10,
+          status: 'talking'
+        };
+      }
+      return a;
+    }));
+
+    try {
+      const response = await fetch('/api/agents/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          agentId,
+          message: text,
+          history: history
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.reply) {
+        // Add agent reply to history
+        setActiveAgentChats(prev => ({
+          ...prev,
+          [agentId]: [...(prev[agentId] || []), { sender: 'agent' as const, text: data.reply }]
+        }));
+
+        // Update agent's visible dialogue and status
+        setAgents(prev => prev.map(a => {
+          if (a.id === agentId) {
+            return {
+              ...a,
+              dialogue: data.reply,
+              dialogueTimer: 15,
+              status: 'talking'
+            };
+          }
+          return a;
+        }));
+
+        const agentName = agents.find(a => a.id === agentId)?.name || agentId;
+        addLog(`💬 Chat: ${agentName} replied: "${data.reply}"`);
+      } else {
+        throw new Error(data.error || 'Failed to generate content');
+      }
+    } catch (err: any) {
+      console.error('Chat error:', err);
+      const fallbackReply = `I am ready to help, but I had trouble reaching our strategy backend. Let me know what else I can optimize for our KPIs!`;
+
+      setActiveAgentChats(prev => ({
+        ...prev,
+        [agentId]: [...(prev[agentId] || []), { sender: 'agent' as const, text: fallbackReply }]
+      }));
+
+      setAgents(prev => prev.map(a => {
+        if (a.id === agentId) {
+          return {
+            ...a,
+            dialogue: fallbackReply,
+            dialogueTimer: 10,
+            status: 'talking'
+          };
+        }
+        return a;
+      }));
+    } finally {
+      setAgentThinkingState(prev => ({ ...prev, [agentId]: false }));
+    }
+  };
+
   // Chat interface states
   const [chatMessage, setChatMessage] = useState<string>('');
   const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'console', text: string }>>([
@@ -1494,6 +1595,24 @@ export default function AgentsOfficePage() {
 
     return () => clearInterval(interval);
   }, [themeMode]);
+
+  // Dialogue countdown timer loop: decrements dialogue timers and auto-clears dialogue when expired
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAgents(prev => prev.map(a => {
+        if (a.dialogueTimer > 0) {
+          const nextTimer = a.dialogueTimer - 1;
+          return {
+            ...a,
+            dialogueTimer: nextTimer,
+            dialogue: nextTimer === 0 ? null : a.dialogue
+          };
+        }
+        return a;
+      }));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Handle Submit Chat to C-Suite
   const handleSendChat = (e: React.FormEvent) => {
@@ -2461,44 +2580,142 @@ export default function AgentsOfficePage() {
                     }}
                   >
                     {/* Speech Dialogue Bubble */}
-                    {agent.dialogue && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: '48px',
-                          background: '#ffffff',
-                          border: `1.5px solid #e2e8f0`,
-                          borderRadius: '12px',
-                          padding: '6px 10px',
-                          color: '#1e293b',
-                          fontSize: '0.7rem',
-                          fontWeight: 500,
-                          lineHeight: '1.35',
-                          minWidth: '100px',
-                          maxWidth: '180px',
-                          textAlign: 'center',
-                          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.15), 0 4px 6px -2px rgba(0,0,0,0.1)',
-                          zIndex: 100,
-                          animation: 'bubble-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-                          pointerEvents: 'none'
-                        }}
-                      >
-                        {agent.dialogue}
-                        <div 
-                          style={{
-                            position: 'absolute',
-                            bottom: '-5px',
-                            left: '50%',
-                            transform: 'translateX(-50%) rotate(45deg)',
-                            width: '8px',
-                            height: '8px',
-                            background: '#ffffff',
-                            borderRight: `1.5px solid #e2e8f0`,
-                            borderBottom: `1.5px solid #e2e8f0`
-                          }}
-                        />
-                      </div>
-                    )}
+                    {((agent.dialogue && !isClosest) || isClosest) && (() => {
+                      const isLeftAligned = agent.x < 4;
+                      const isRightAligned = agent.x > 19;
+                      const bubbleStyle: React.CSSProperties = {
+                        position: 'absolute',
+                        bottom: '48px',
+                        background: themeMode === 'night' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                        backdropFilter: 'blur(4px)',
+                        border: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
+                        borderRadius: '12px',
+                        padding: '8px 12px',
+                        color: themeMode === 'night' ? '#f8fafc' : '#1e293b',
+                        fontSize: '0.7rem',
+                        fontWeight: 500,
+                        lineHeight: '1.35',
+                        minWidth: isClosest ? '240px' : '120px',
+                        maxWidth: isClosest ? '280px' : '180px',
+                        textAlign: 'left',
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.15), 0 4px 6px -2px rgba(0,0,0,0.1)',
+                        zIndex: 100,
+                        pointerEvents: isClosest ? 'auto' : 'none',
+                        left: isLeftAligned ? '0px' : (isRightAligned ? 'auto' : '50%'),
+                        right: isRightAligned ? '0px' : 'auto',
+                        transform: isLeftAligned || isRightAligned ? 'none' : 'translateX(-50%)',
+                        animation: isLeftAligned 
+                          ? 'bubble-pop-left 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
+                          : (isRightAligned 
+                              ? 'bubble-pop-right 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
+                              : 'bubble-pop-center 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards')
+                      };
+
+                      const arrowStyle: React.CSSProperties = {
+                        position: 'absolute',
+                        bottom: '-5px',
+                        width: '8px',
+                        height: '8px',
+                        background: themeMode === 'night' ? '#1e293b' : '#ffffff',
+                        borderRight: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
+                        borderBottom: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
+                        left: isLeftAligned ? '20px' : (isRightAligned ? 'auto' : '50%'),
+                        right: isRightAligned ? '20px' : 'auto',
+                        transform: isLeftAligned || isRightAligned ? 'rotate(45deg)' : 'translateX(-50%) rotate(45deg)'
+                      };
+
+                      return (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          style={bubbleStyle}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.65rem', opacity: 0.8, color: agent.color }}>
+                              {agent.name} • {agent.role}
+                            </div>
+                            <div style={{ minHeight: '16px' }}>
+                              {agentThinkingState[agent.id] ? (
+                                <div style={{ display: 'flex', gap: '3px', alignItems: 'center', height: '16px', paddingLeft: '4px' }}>
+                                  <span className="dot-bounce-1" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
+                                  <span className="dot-bounce-2" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
+                                  <span className="dot-bounce-3" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
+                                </div>
+                              ) : (
+                                isClosest
+                                  ? (activeAgentChats[agent.id] && activeAgentChats[agent.id].length > 0
+                                      ? activeAgentChats[agent.id][activeAgentChats[agent.id].length - 1].text
+                                      : `Hello! I am ready to collaborate. Type below to sync.`)
+                                  : agent.dialogue
+                              )}
+                            </div>
+                          </div>
+
+                          {isClosest && (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                const inputVal = bubbleInputs[agent.id] || '';
+                                if (inputVal.trim()) {
+                                  handleBubbleSubmit(agent.id, inputVal);
+                                }
+                              }}
+                              style={{
+                                marginTop: '8px',
+                                borderTop: themeMode === 'night' ? '1px solid #334155' : '1px solid #e2e8f0',
+                                paddingTop: '6px',
+                                display: 'flex',
+                                gap: '6px',
+                                alignItems: 'center'
+                              }}
+                            >
+                              <input
+                                type="text"
+                                placeholder={`Type message to ${agent.shortLabel}...`}
+                                value={bubbleInputs[agent.id] || ''}
+                                onChange={(e) => {
+                                  setBubbleInputs(prev => ({ ...prev, [agent.id]: e.target.value }));
+                                }}
+                                onKeyDown={(e) => {
+                                  e.stopPropagation();
+                                }}
+                                style={{
+                                  flex: 1,
+                                  background: themeMode === 'night' ? '#0f172a' : '#f8fafc',
+                                  border: themeMode === 'night' ? '1px solid #475569' : '1px solid #cbd5e1',
+                                  borderRadius: '6px',
+                                  padding: '4px 8px',
+                                  fontSize: '0.65rem',
+                                  color: themeMode === 'night' ? '#f8fafc' : '#0f172a',
+                                  outline: 'none'
+                                }}
+                                disabled={agentThinkingState[agent.id]}
+                              />
+                              <button
+                                type="submit"
+                                disabled={agentThinkingState[agent.id] || !(bubbleInputs[agent.id] || '').trim()}
+                                style={{
+                                  background: agent.color,
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '4px 10px',
+                                  fontSize: '0.65rem',
+                                  fontWeight: 'bold',
+                                  cursor: 'pointer',
+                                  opacity: (bubbleInputs[agent.id] || '').trim() ? 1 : 0.6,
+                                  transition: 'opacity 0.2s'
+                                }}
+                              >
+                                Send
+                              </button>
+                            </form>
+                          )}
+
+                          <div style={arrowStyle} />
+                        </div>
+                      );
+                    })()}
 
                     {/* Transparent Character Container */}
                     <div 
@@ -3101,10 +3318,25 @@ export default function AgentsOfficePage() {
           animation: steam-rise 2s infinite ease-out;
         }
         /* Speech Bubble Pop-in animation */
-        @keyframes bubble-pop {
+        @keyframes bubble-pop-left {
+          0% { transform: translateY(10px) scale(0.85); opacity: 0; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes bubble-pop-right {
+          0% { transform: translateY(10px) scale(0.85); opacity: 0; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        @keyframes bubble-pop-center {
           0% { transform: translate(-50%, 10px) scale(0.85); opacity: 0; }
           100% { transform: translate(-50%, 0) scale(1); opacity: 1; }
         }
+        @keyframes dot-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .dot-bounce-1 { animation: dot-bounce 0.8s infinite 0ms; }
+        .dot-bounce-2 { animation: dot-bounce 0.8s infinite 150ms; }
+        .dot-bounce-3 { animation: dot-bounce 0.8s infinite 300ms; }
         /* Zzz Sleep Floating Particle keyframes */
         @keyframes zzz-float {
           0% { transform: translate(5px, -2px) scale(0.8); opacity: 0; }

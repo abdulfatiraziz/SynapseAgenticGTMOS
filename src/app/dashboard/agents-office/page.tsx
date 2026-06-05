@@ -1352,6 +1352,16 @@ export default function AgentsOfficePage() {
   const [debateTopic, setDebateTopic] = useState<string>('');
   const [activeObjectInteraction, setActiveObjectInteraction] = useState<'espresso' | 'pool' | null>(null);
 
+  // Chat interface states
+  const [chatMessage, setChatMessage] = useState<string>('');
+  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'console', text: string }>>([
+    { sender: 'console', text: "GTM Direct Action Console ready. Type any GTM instruction below to broadcast it directly to C-Suite executives." }
+  ]);
+  
+  // Delegation pipeline states
+  const [delegationState, setDelegationState] = useState<'idle' | 'exec_consulting' | 'exec_walking_to_dept' | 'dept_aligning' | 'returning'>('idle');
+  const [activeInstruction, setActiveInstruction] = useState<string>('');
+
   const handleBubbleSubmit = async (agentId: string, text: string) => {
     if (!text.trim()) return;
 
@@ -1782,15 +1792,7 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
     }));
   };
 
-  // Chat interface states
-  const [chatMessage, setChatMessage] = useState<string>('');
-  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'console', text: string }>>([
-    { sender: 'console', text: "GTM Direct Action Console ready. Type any GTM instruction below to broadcast it directly to C-Suite executives." }
-  ]);
-  
-  // Delegation pipeline states
-  const [delegationState, setDelegationState] = useState<'idle' | 'exec_consulting' | 'exec_walking_to_dept' | 'dept_aligning' | 'returning'>('idle');
-  const [activeInstruction, setActiveInstruction] = useState<string>('');
+
 
   const activeAgentId = selectedAgentId || proximityAgentId;
   const activeAgent = agents.find(a => a.id === activeAgentId);

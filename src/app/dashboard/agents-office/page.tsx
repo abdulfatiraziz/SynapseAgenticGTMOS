@@ -1344,6 +1344,14 @@ export default function AgentsOfficePage() {
   const [agentThinkingState, setAgentThinkingState] = useState<Record<string, boolean>>({});
   const [bubbleInputs, setBubbleInputs] = useState<Record<string, string>>({});
 
+  // Boardroom debate & Live office states
+  const [agentPaths, setAgentPaths] = useState<Record<string, { x: number; y: number }[]>>({});
+  const [boardroomState, setBoardroomState] = useState<'idle' | 'gathering' | 'in_meeting' | 'dispersing'>('idle');
+  const [debateHistory, setDebateHistory] = useState<Array<{ role: string; text: string }>>([]);
+  const [debateSpeakerIndex, setDebateSpeakerIndex] = useState<number>(-1);
+  const [debateTopic, setDebateTopic] = useState<string>('');
+  const [activeObjectInteraction, setActiveObjectInteraction] = useState<'espresso' | 'pool' | null>(null);
+
   const handleBubbleSubmit = async (agentId: string, text: string) => {
     if (!text.trim()) return;
 
@@ -1438,6 +1446,340 @@ export default function AgentsOfficePage() {
     } finally {
       setAgentThinkingState(prev => ({ ...prev, [agentId]: false }));
     }
+  };
+
+  // Helper to assign walking paths to multiple agents
+  const walkMultipleAgents = (targets: { id: string; x: number; y: number }[]) => {
+    setAgentPaths(prev => {
+      const nextPaths = { ...prev };
+      
+      setAgents(prevAgents => {
+        return prevAgents.map(a => {
+          const target = targets.find(t => t.id === a.id);
+          if (target) {
+            const path = findPath(a.x, a.y, target.x, target.y);
+            if (path && path.length > 0) {
+              nextPaths[a.id] = path;
+            }
+          }
+          return a;
+        });
+      });
+      
+      return nextPaths;
+    });
+  };
+
+  // Agent Pathfinding Walker Loop (cell-by-cell moves based on queued paths)
+  useEffect(() => {
+    if (Object.keys(agentPaths).length === 0) return;
+
+    const intervalTime = 180 / simSpeed;
+    const agentWalkInterval = setInterval(() => {
+      let hasActivePaths = false;
+
+      setAgentPaths(prevPaths => {
+        const nextPaths = { ...prevPaths };
+        
+        setAgents(prevAgents => {
+          let updated = false;
+          const nextAgents = prevAgents.map(a => {
+            const path = nextPaths[a.id];
+            if (path && path.length > 0) {
+              const nextStep = path[0];
+              const remaining = path.slice(1);
+              if (remaining.length === 0) {
+                delete nextPaths[a.id];
+              } else {
+                nextPaths[a.id] = remaining;
+                hasActivePaths = true;
+              }
+
+              let dir = a.direction;
+              if (nextStep.x > a.x) dir = 'right';
+              else if (nextStep.x < a.x) dir = 'left';
+              else if (nextStep.y > a.y) dir = 'down';
+              else if (nextStep.y < a.y) dir = 'up';
+
+              updated = true;
+              return {
+                ...a,
+                x: nextStep.x,
+                y: nextStep.y,
+                direction: dir,
+                isMoving: true
+              };
+            } else if (a.isMoving) {
+              updated = true;
+              return { ...a, isMoving: false };
+            }
+            return a;
+          });
+
+          return updated ? nextAgents : prevAgents;
+        });
+
+        if (!hasActivePaths) return {};
+        return nextPaths;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(agentWalkInterval);
+  }, [agentPaths, simSpeed]);
+
+  // Boardroom Meeting gathering detector: triggers 'in_meeting' once VPs arrive
+  useEffect(() => {
+    if (boardroomState !== 'gathering') return;
+
+    const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'];
+    const vpDestinations: Record<string, {x: number, y: number}> = {
+      cmo: { x: 9, y: 12 },
+      vp_sales: { x: 9, y: 13 },
+      vp_cs: { x: 12, y: 12 },
+      vp_partnerships: { x: 12, y: 13 },
+      vp_pmm: { x: 11, y: 11 }
+    };
+
+    const allArrived = vps.every(id => {
+      const agent = agents.find(a => a.id === id);
+      const dest = vpDestinations[id];
+      return agent && agent.x === dest.x && agent.y === dest.y;
+    });
+
+    if (allArrived) {
+      setBoardroomState('in_meeting');
+      addLog("👔 Boardroom: C-Suite VPs have gathered around the table. Seeding debate console.");
+      setAgents(prev => prev.map(a => {
+        if (vps.includes(a.id)) {
+          return {
+            ...a,
+            status: 'talking',
+            dialogue: "Ready for GTM sync.",
+            dialogueTimer: 4
+          };
+        }
+        return a;
+      }));
+    }
+  }, [agents, boardroomState]);
+
+  // Boardroom Meeting dispersal detector: returns state to idle once VPs reach home cabins
+  useEffect(() => {
+    if (boardroomState !== 'dispersing') return;
+
+    const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'];
+    const allReturned = vps.every(id => {
+      const agent = agents.find(a => a.id === id);
+      return agent && agent.x === agent.homeX && agent.y === agent.homeY;
+    });
+
+    if (allReturned) {
+      setBoardroomState('idle');
+      addLog("👔 Boardroom: Alignment complete. VPs back to work cabins.");
+    }
+  }, [agents, boardroomState]);
+
+  // Boardroom debate turn runner: handles sequential speaking using Gemini API
+  useEffect(() => {
+    if (boardroomState !== 'in_meeting' || debateSpeakerIndex < 0 || debateSpeakerIndex >= 5) return;
+
+    const runDebateTurn = async () => {
+      const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_pmm', 'vp_partnerships'];
+      const speakerId = vps[debateSpeakerIndex];
+      const speaker = agents.find(a => a.id === speakerId);
+      if (!speaker) return;
+
+      // Set thinking state for speaker
+      setAgentThinkingState(prev => ({ ...prev, [speakerId]: true }));
+
+      // Format previous debate history for Gemini
+      const previousComments = debateHistory.map(d => `[${d.role}]: "${d.text}"`).join('\n');
+      const seedPrompt = `We are having a boardroom debate regarding the GTM directive: "${debateTopic}".
+Preceding comments in the debate:
+${previousComments || "(No comments yet. You are starting the debate.)"}
+
+Please provide your response to this GTM directive and any preceding comments from the perspective of your role: ${speaker.role}.
+Keep your response to exactly 1 or 2 concise, impactful sentences representing your department's view. Do not use JSON or markdown. Just output clean speech text.`;
+
+      try {
+        const response = await fetch('/api/agents/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            agentId: speakerId,
+            message: seedPrompt,
+            history: []
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.reply) {
+          // Update speaker's speech bubble and clear other VPs' bubbles
+          setAgents(prev => prev.map(a => {
+            if (a.id === speakerId) {
+              return {
+                ...a,
+                dialogue: data.reply,
+                dialogueTimer: 10,
+                status: 'talking'
+              };
+            }
+            if (vps.includes(a.id)) {
+              return {
+                ...a,
+                dialogue: null,
+                dialogueTimer: 0,
+                status: 'working'
+              };
+            }
+            return a;
+          }));
+
+          // Add to debate history log
+          setDebateHistory(prev => [...prev, { role: speaker.shortLabel, text: data.reply }]);
+          addLog(`👔 Debate: [${speaker.shortLabel}] spoken: "${data.reply}"`);
+        }
+      } catch (err) {
+        console.error('Debate turn error:', err);
+      } finally {
+        setAgentThinkingState(prev => ({ ...prev, [speakerId]: false }));
+        
+        // Wait 10 seconds for the user to read the bubble, then proceed to the next speaker!
+        setTimeout(() => {
+          setDebateSpeakerIndex(prev => prev + 1);
+        }, 10000);
+      }
+    };
+
+    runDebateTurn();
+  }, [debateSpeakerIndex, boardroomState]);
+
+  // Ambient Breaks Loop: occasionally walks random agents to Canteen, Lounge, or Pool Table
+  useEffect(() => {
+    if (!simRunning || boardroomState !== 'idle' || delegationState !== 'idle') return;
+
+    const interval = setInterval(() => {
+      // 12% chance every 20s to trigger a break
+      if (Math.random() > 0.12) return;
+
+      const nonCSuiteAgents = agents.filter(a => a.department !== 'C-Suite' && a.department !== 'Support');
+      if (nonCSuiteAgents.length === 0) return;
+      const agent = nonCSuiteAgents[Math.floor(Math.random() * nonCSuiteAgents.length)];
+
+      // Make sure they are currently at home workstation
+      if (agent.x !== agent.homeX || agent.y !== agent.homeY) return;
+
+      // Select break area: 0 = Espresso Bar, 1 = Sofa, 2 = Pool Table
+      const breakType = Math.floor(Math.random() * 3);
+      let breakX = 1;
+      let breakY = 8;
+      let breakName = "Espresso Island";
+      let breakMsg = "Grabbing an espresso shot... ☕";
+
+      if (breakType === 1) {
+        breakX = 6;
+        breakY = 8;
+        breakName = "Cozy Lounge";
+        breakMsg = "Taking a lounge break on the sofa... 🛋️";
+      } else if (breakType === 2) {
+        breakX = 19;
+        breakY = 8;
+        breakName = "Pool Table";
+        breakMsg = "Playing a quick game of pool... 🎱";
+      }
+
+      const path = findPath(agent.x, agent.y, breakX, breakY);
+      if (path && path.length > 0) {
+        addLog(`Ambient Break: ${agent.name} is walking to ${breakName}.`);
+        setAgentPaths(prev => ({ ...prev, [agent.id]: path }));
+
+        setAgents(prev => prev.map(a => {
+          if (a.id === agent.id) {
+            return {
+              ...a,
+              status: 'talking',
+              dialogue: breakMsg,
+              dialogueTimer: 6
+            };
+          }
+          return a;
+        }));
+
+        // Hang out for 15 seconds, then return
+        setTimeout(() => {
+          setAgents(prev => prev.map(a => {
+            if (a.id === agent.id) {
+              const returnPath = findPath(a.x, a.y, a.homeX, a.homeY);
+              if (returnPath && returnPath.length > 0) {
+                setAgentPaths(prevP => ({ ...prevP, [agent.id]: returnPath }));
+              }
+              return {
+                ...a,
+                status: 'working',
+                dialogue: "Return to work.",
+                dialogueTimer: 4
+              };
+            }
+            return a;
+          }));
+        }, 15000);
+      }
+    }, 20000);
+
+    return () => clearInterval(interval);
+  }, [simRunning, boardroomState, delegationState, agents]);
+
+  // Proximity to Interactive Objects Tracker
+  useEffect(() => {
+    // Espresso Island: cols 1-2, rows 8-9
+    // Pool Table: cols 19-20, rows 8-9
+    const isNearEspresso = Math.abs(player.x - 1.5) <= 1.5 && Math.abs(player.y - 8.5) <= 1.5;
+    const isNearPool = Math.abs(player.x - 19.5) <= 1.5 && Math.abs(player.y - 8.5) <= 1.5;
+    
+    if (isNearEspresso) {
+      setActiveObjectInteraction('espresso');
+    } else if (isNearPool) {
+      setActiveObjectInteraction('pool');
+    } else {
+      setActiveObjectInteraction(null);
+    }
+  }, [player.x, player.y]);
+
+  const handleBrewEspresso = () => {
+    addLog("☕ Espresso: Brewing a dark roasted double espresso shot. Player battery fully recharged!");
+    
+    setAgents(prev => prev.map(a => {
+      const dist = Math.sqrt(Math.pow(a.x - player.x, 2) + Math.pow(a.y - player.y, 2));
+      if (dist <= 3) {
+        return {
+          ...a,
+          battery: Math.min(100, a.battery + 15),
+          dialogue: "Mmm, fresh espresso! ☕ Thanks!",
+          dialogueTimer: 4
+        };
+      }
+      return a;
+    }));
+  };
+
+  const handlePlayPool = () => {
+    addLog("🎱 Pool Table: Strike! You hit a perfect cue-stick shot and pocketed the solid 8-ball.");
+    
+    setAgents(prev => prev.map(a => {
+      const dist = Math.sqrt(Math.pow(a.x - player.x, 2) + Math.pow(a.y - player.y, 2));
+      if (dist <= 3) {
+        const cheerMsgs = ["Nice shot! 🎱", "Whoa, solid side pocket!", "What a spin! 🚀", "Unbelievable angle!"];
+        return {
+          ...a,
+          dialogue: cheerMsgs[Math.floor(Math.random() * cheerMsgs.length)],
+          dialogueTimer: 4
+        };
+      }
+      return a;
+    }));
   };
 
   // Chat interface states
@@ -1750,54 +2092,94 @@ export default function AgentsOfficePage() {
   }, [delegationState, activeInstruction, simSpeed]);
 
   // Global command overrides
-  const callAllToBoardroom = () => {
-    setAgents(prev => prev.map((a, idx) => {
-      const tableX = 10 + (idx % 2);
-      const tableY = 3 + Math.floor(idx / 2);
-      return {
-        ...a,
-        x: tableX,
-        y: tableY,
-        direction: 'down',
-        isMoving: true,
-        status: 'talking',
-        dialogue: "Attending alignment sync.",
-        dialogueTimer: 4
-      };
-    }));
-    addLog("🚨 All-Hands: Called all 17 agents to the C-Suite Boardroom.");
+  const walkAllToCafe = () => {
+    addLog("☕ Coffee Break: Walking all agents to the Cafeteria.");
+    const targets = agents.map((a, idx) => {
+      const cafeX = 1 + (idx % 4);
+      const cafeY = 8 + (idx % 2);
+      return { id: a.id, x: cafeX, y: cafeY };
+    });
+    
+    setAgents(prev => prev.map((a, idx) => ({
+      ...a,
+      status: 'talking',
+      dialogue: idx % 3 === 0 ? "Walk to cafe! ☕" : null,
+      dialogueTimer: 4
+    })));
+    
+    walkMultipleAgents(targets);
   };
 
-  const sendAllToCafe = () => {
-    setAgents(prev => prev.map((a, idx) => {
-      const cafeX = 9 + (idx % 6);
-      const cafeY = 13;
-      return {
-        ...a,
-        x: cafeX,
-        y: cafeY,
-        direction: 'up',
-        isMoving: true,
-        status: 'idle',
-        dialogue: idx % 3 === 0 ? "Enjoying espresso break! ☕" : null,
-        dialogueTimer: 4
-      };
-    }));
-    addLog("☕ Coffee Break: Dispatched all agents to the Lobby Cafe.");
-  };
-
-  const sendAllToDesks = () => {
+  const walkAllToDesks = () => {
+    addLog("⚙️ Reset Desks: Walking all agents back to their cabins.");
+    const targets = agents.map(a => ({ id: a.id, x: a.homeX, y: a.homeY }));
+    
     setAgents(prev => prev.map(a => ({
       ...a,
-      x: a.homeX,
-      y: a.homeY,
-      direction: 'up',
-      isMoving: true,
-      status: 'idle',
-      dialogue: null,
-      dialogueTimer: 0
+      status: 'working',
+      dialogue: "Heading back to work.",
+      dialogueTimer: 3
     })));
-    addLog("⚙️ Desks Reset: Returned all agents to their assigned workstations.");
+    
+    walkMultipleAgents(targets);
+  };
+
+  const startBoardroomMeeting = () => {
+    setBoardroomState('gathering');
+    setDebateHistory([]);
+    setDebateSpeakerIndex(-1);
+    addLog("👔 Boardroom: Calling VPs to gather around the boardroom table.");
+    
+    const vpSeats = [
+      { id: 'cmo', x: 9, y: 12 },
+      { id: 'vp_sales', x: 9, y: 13 },
+      { id: 'vp_cs', x: 12, y: 12 },
+      { id: 'vp_partnerships', x: 12, y: 13 },
+      { id: 'vp_pmm', x: 11, y: 11 }
+    ];
+    
+    setAgents(prev => prev.map(a => {
+      const isVp = vpSeats.some(v => v.id === a.id);
+      if (isVp) {
+        return {
+          ...a,
+          status: 'talking',
+          dialogue: "Sync in boardroom. Walking.",
+          dialogueTimer: 4
+        };
+      }
+      return a;
+    }));
+    
+    walkMultipleAgents(vpSeats);
+  };
+
+  const endBoardroomMeeting = () => {
+    setBoardroomState('dispersing');
+    addLog("👔 Boardroom: Adjourning boardroom meeting. VPs returning to cabins.");
+    
+    const homeSeats = [
+      { id: 'cmo', x: 2, y: 5 },
+      { id: 'vp_sales', x: 4, y: 5 },
+      { id: 'vp_cs', x: 10, y: 5 },
+      { id: 'vp_partnerships', x: 13, y: 5 },
+      { id: 'vp_pmm', x: 6, y: 5 }
+    ];
+    
+    setAgents(prev => prev.map(a => {
+      const isVp = homeSeats.some(h => h.id === a.id);
+      if (isVp) {
+        return {
+          ...a,
+          status: 'working',
+          dialogue: "Meeting complete.",
+          dialogueTimer: 3
+        };
+      }
+      return a;
+    }));
+    
+    walkMultipleAgents(homeSeats);
   };
 
   const forceTaskDispatch = (agentId: string) => {
@@ -1818,15 +2200,15 @@ export default function AgentsOfficePage() {
   };
 
   const forceAllHands = () => {
-    callAllToBoardroom();
+    startBoardroomMeeting();
   };
 
   const forceCoffee = () => {
-    sendAllToCafe();
+    walkAllToCafe();
   };
 
   const forceHome = () => {
-    sendAllToDesks();
+    walkAllToDesks();
   };
 
   return (
@@ -2579,143 +2961,6 @@ export default function AgentsOfficePage() {
                       cursor: 'pointer'
                     }}
                   >
-                    {/* Speech Dialogue Bubble */}
-                    {((agent.dialogue && !isClosest) || isClosest) && (() => {
-                      const isLeftAligned = agent.x < 4;
-                      const isRightAligned = agent.x > 19;
-                      const bubbleStyle: React.CSSProperties = {
-                        position: 'absolute',
-                        bottom: '48px',
-                        background: themeMode === 'night' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-                        backdropFilter: 'blur(4px)',
-                        border: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
-                        borderRadius: '12px',
-                        padding: '8px 12px',
-                        color: themeMode === 'night' ? '#f8fafc' : '#1e293b',
-                        fontSize: '0.7rem',
-                        fontWeight: 500,
-                        lineHeight: '1.35',
-                        minWidth: isClosest ? '240px' : '120px',
-                        maxWidth: isClosest ? '280px' : '180px',
-                        textAlign: 'left',
-                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.15), 0 4px 6px -2px rgba(0,0,0,0.1)',
-                        zIndex: 100,
-                        pointerEvents: isClosest ? 'auto' : 'none',
-                        left: isLeftAligned ? '0px' : (isRightAligned ? 'auto' : '50%'),
-                        right: isRightAligned ? '0px' : 'auto',
-                        transform: isLeftAligned || isRightAligned ? 'none' : 'translateX(-50%)',
-                        animation: isLeftAligned 
-                          ? 'bubble-pop-left 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
-                          : (isRightAligned 
-                              ? 'bubble-pop-right 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
-                              : 'bubble-pop-center 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards')
-                      };
-
-                      const arrowStyle: React.CSSProperties = {
-                        position: 'absolute',
-                        bottom: '-5px',
-                        width: '8px',
-                        height: '8px',
-                        background: themeMode === 'night' ? '#1e293b' : '#ffffff',
-                        borderRight: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
-                        borderBottom: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
-                        left: isLeftAligned ? '20px' : (isRightAligned ? 'auto' : '50%'),
-                        right: isRightAligned ? '20px' : 'auto',
-                        transform: isLeftAligned || isRightAligned ? 'rotate(45deg)' : 'translateX(-50%) rotate(45deg)'
-                      };
-
-                      return (
-                        <div
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          style={bubbleStyle}
-                        >
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.65rem', opacity: 0.8, color: agent.color }}>
-                              {agent.name} • {agent.role}
-                            </div>
-                            <div style={{ minHeight: '16px' }}>
-                              {agentThinkingState[agent.id] ? (
-                                <div style={{ display: 'flex', gap: '3px', alignItems: 'center', height: '16px', paddingLeft: '4px' }}>
-                                  <span className="dot-bounce-1" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
-                                  <span className="dot-bounce-2" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
-                                  <span className="dot-bounce-3" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
-                                </div>
-                              ) : (
-                                isClosest
-                                  ? (activeAgentChats[agent.id] && activeAgentChats[agent.id].length > 0
-                                      ? activeAgentChats[agent.id][activeAgentChats[agent.id].length - 1].text
-                                      : `Hello! I am ready to collaborate. Type below to sync.`)
-                                  : agent.dialogue
-                              )}
-                            </div>
-                          </div>
-
-                          {isClosest && (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                const inputVal = bubbleInputs[agent.id] || '';
-                                if (inputVal.trim()) {
-                                  handleBubbleSubmit(agent.id, inputVal);
-                                }
-                              }}
-                              style={{
-                                marginTop: '8px',
-                                borderTop: themeMode === 'night' ? '1px solid #334155' : '1px solid #e2e8f0',
-                                paddingTop: '6px',
-                                display: 'flex',
-                                gap: '6px',
-                                alignItems: 'center'
-                              }}
-                            >
-                              <input
-                                type="text"
-                                placeholder={`Type message to ${agent.shortLabel}...`}
-                                value={bubbleInputs[agent.id] || ''}
-                                onChange={(e) => {
-                                  setBubbleInputs(prev => ({ ...prev, [agent.id]: e.target.value }));
-                                }}
-                                onKeyDown={(e) => {
-                                  e.stopPropagation();
-                                }}
-                                style={{
-                                  flex: 1,
-                                  background: themeMode === 'night' ? '#0f172a' : '#f8fafc',
-                                  border: themeMode === 'night' ? '1px solid #475569' : '1px solid #cbd5e1',
-                                  borderRadius: '6px',
-                                  padding: '4px 8px',
-                                  fontSize: '0.65rem',
-                                  color: themeMode === 'night' ? '#f8fafc' : '#0f172a',
-                                  outline: 'none'
-                                }}
-                                disabled={agentThinkingState[agent.id]}
-                              />
-                              <button
-                                type="submit"
-                                disabled={agentThinkingState[agent.id] || !(bubbleInputs[agent.id] || '').trim()}
-                                style={{
-                                  background: agent.color,
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  padding: '4px 10px',
-                                  fontSize: '0.65rem',
-                                  fontWeight: 'bold',
-                                  cursor: 'pointer',
-                                  opacity: (bubbleInputs[agent.id] || '').trim() ? 1 : 0.6,
-                                  transition: 'opacity 0.2s'
-                                }}
-                              >
-                                Send
-                              </button>
-                            </form>
-                          )}
-
-                          <div style={arrowStyle} />
-                        </div>
-                      );
-                    })()}
 
                     {/* Transparent Character Container */}
                     <div 
@@ -2823,6 +3068,164 @@ export default function AgentsOfficePage() {
                 );
               })}
 
+              {/* Dynamic Agents Speech Bubbles layer (rendered as overlay above all avatars) */}
+              {agents.map(agent => {
+                const { isoX, isoY } = projectIso(agent.x, agent.y);
+                const isClosest = proximityAgentId === agent.id;
+
+                if (!((agent.dialogue && !isClosest) || isClosest)) return null;
+
+                const isLeftAligned = agent.x < 4;
+                const isRightAligned = agent.x > 19;
+                
+                const bubbleStyle: React.CSSProperties = {
+                  position: 'absolute',
+                  bottom: '48px',
+                  background: themeMode === 'night' ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                  backdropFilter: 'blur(4px)',
+                  border: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
+                  borderRadius: '12px',
+                  padding: '8px 12px',
+                  color: themeMode === 'night' ? '#f8fafc' : '#1e293b',
+                  fontSize: '0.7rem',
+                  fontWeight: 500,
+                  lineHeight: '1.35',
+                  minWidth: isClosest ? '240px' : '120px',
+                  maxWidth: isClosest ? '280px' : '180px',
+                  textAlign: 'left',
+                  boxShadow: '0 10px 15px -3px rgba(0,0,0,0.15), 0 4px 6px -2px rgba(0,0,0,0.1)',
+                  zIndex: 100,
+                  pointerEvents: 'auto', // enable clicks inside the bubble
+                  left: isLeftAligned ? '0px' : (isRightAligned ? 'auto' : '50%'),
+                  right: isRightAligned ? '0px' : 'auto',
+                  transform: isLeftAligned || isRightAligned ? 'none' : 'translateX(-50%)',
+                  animation: isLeftAligned 
+                    ? 'bubble-pop-left 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
+                    : (isRightAligned 
+                        ? 'bubble-pop-right 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards' 
+                        : 'bubble-pop-center 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) forwards')
+                };
+
+                const arrowStyle: React.CSSProperties = {
+                  position: 'absolute',
+                  bottom: '-5px',
+                  width: '8px',
+                  height: '8px',
+                  background: themeMode === 'night' ? '#1e293b' : '#ffffff',
+                  borderRight: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
+                  borderBottom: themeMode === 'night' ? `1.5px solid #334155` : `1.5px solid #e2e8f0`,
+                  left: isLeftAligned ? '20px' : (isRightAligned ? 'auto' : '50%'),
+                  right: isRightAligned ? '20px' : 'auto',
+                  transform: isLeftAligned || isRightAligned ? 'rotate(45deg)' : 'translateX(-50%) rotate(45deg)'
+                };
+
+                return (
+                  <div
+                    key={`agent-bubble-container-${agent.id}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${isoX - 4}px`,
+                      top: `${isoY - 12}px`,
+                      width: '48px',
+                      height: '44px',
+                      transition: `left 0.22s linear, top 0.22s linear`,
+                      zIndex: 40, // Rendered as overlay above all avatars and desks
+                      pointerEvents: 'none'
+                    }}
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      style={bubbleStyle}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.65rem', opacity: 0.8, color: agent.color }}>
+                          {agent.name} • {agent.role}
+                        </div>
+                        <div style={{ minHeight: '16px' }}>
+                          {agentThinkingState[agent.id] ? (
+                            <div style={{ display: 'flex', gap: '3px', alignItems: 'center', height: '16px', paddingLeft: '4px' }}>
+                              <span className="dot-bounce-1" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
+                              <span className="dot-bounce-2" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
+                              <span className="dot-bounce-3" style={{ width: '4px', height: '4px', background: agent.color, borderRadius: '50%', display: 'inline-block' }} />
+                            </div>
+                          ) : (
+                            isClosest
+                              ? (activeAgentChats[agent.id] && activeAgentChats[agent.id].length > 0
+                                  ? activeAgentChats[agent.id][activeAgentChats[agent.id].length - 1].text
+                                  : `Hello! I am ready to collaborate. Type below to sync.`)
+                              : agent.dialogue
+                          )}
+                        </div>
+                      </div>
+
+                      {isClosest && (
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const inputVal = bubbleInputs[agent.id] || '';
+                            if (inputVal.trim()) {
+                              handleBubbleSubmit(agent.id, inputVal);
+                            }
+                          }}
+                          style={{
+                            marginTop: '8px',
+                            borderTop: themeMode === 'night' ? '1px solid #334155' : '1px solid #e2e8f0',
+                            paddingTop: '6px',
+                            display: 'flex',
+                            gap: '6px',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <input
+                            type="text"
+                            placeholder={`Type message to ${agent.shortLabel}...`}
+                            value={bubbleInputs[agent.id] || ''}
+                            onChange={(e) => {
+                              setBubbleInputs(prev => ({ ...prev, [agent.id]: e.target.value }));
+                            }}
+                            onKeyDown={(e) => {
+                              e.stopPropagation();
+                            }}
+                            style={{
+                              flex: 1,
+                              background: themeMode === 'night' ? '#0f172a' : '#f8fafc',
+                              border: themeMode === 'night' ? '1px solid #475569' : '1px solid #cbd5e1',
+                              borderRadius: '6px',
+                              padding: '4px 8px',
+                              fontSize: '0.65rem',
+                              color: themeMode === 'night' ? '#f8fafc' : '#0f172a',
+                              outline: 'none'
+                            }}
+                            disabled={agentThinkingState[agent.id]}
+                          />
+                          <button
+                            type="submit"
+                            disabled={agentThinkingState[agent.id] || !(bubbleInputs[agent.id] || '').trim()}
+                            style={{
+                              background: agent.color,
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '6px',
+                              padding: '4px 10px',
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              opacity: (bubbleInputs[agent.id] || '').trim() ? 1 : 0.6,
+                              transition: 'opacity 0.2s'
+                            }}
+                          >
+                            Send
+                          </button>
+                        </form>
+                      )}
+
+                      <div style={arrowStyle} />
+                    </div>
+                  </div>
+                );
+              })}
+
               {/* Renders Player (You) */}
               {(() => {
                 const { isoX, isoY } = projectIso(player.x, player.y);
@@ -2842,6 +3245,33 @@ export default function AgentsOfficePage() {
                       alignItems: 'center'
                     }}
                   >
+                    {activeObjectInteraction && (
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (activeObjectInteraction === 'espresso') handleBrewEspresso();
+                          else if (activeObjectInteraction === 'pool') handlePlayPool();
+                        }}
+                        style={{
+                          position: 'absolute',
+                          bottom: '68px',
+                          background: '#10b981',
+                          color: '#fff',
+                          border: '1.5px solid #34d399',
+                          borderRadius: '8px',
+                          padding: '4px 8px',
+                          fontSize: '0.65rem',
+                          fontWeight: 'bold',
+                          whiteSpace: 'nowrap',
+                          boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
+                          cursor: 'pointer',
+                          zIndex: 1000,
+                          animation: 'badge-float 1.5s infinite ease-in-out'
+                        }}
+                      >
+                        {activeObjectInteraction === 'espresso' ? "☕ Brew Espresso" : "🎱 Play Pool"}
+                      </div>
+                    )}
 
                     {/* Transparent Player Container */}
                     <div 
@@ -2927,122 +3357,265 @@ export default function AgentsOfficePage() {
               boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.3)'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={16} color="var(--accent-color)" />
-                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  GTM Direct Action Console
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button 
-                  onClick={forceAllHands}
-                  style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)', color: '#a5b4fc', borderRadius: '6px', cursor: 'pointer' }}
-                >
-                  🚨 All-Hands Meeting
-                </button>
-                <button 
-                  onClick={forceCoffee}
-                  style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(251,113,133,0.1)', border: '1px solid rgba(251,113,133,0.2)', color: '#fda4af', borderRadius: '6px', cursor: 'pointer' }}
-                >
-                  ☕ Coffee break
-                </button>
-                <button 
-                  onClick={forceHome}
-                  style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', color: '#6ee7b7', borderRadius: '6px', cursor: 'pointer' }}
-                >
-                  ⚙️ Reset desks
-                </button>
-              </div>
-            </div>
-
-            {/* Chat Messages Log */}
-            <div 
-              style={{
-                height: '110px',
-                overflowY: 'auto',
-                background: 'rgba(0,0,0,0.25)',
-                borderRadius: '10px',
-                padding: '10px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                border: '1px solid rgba(255,255,255,0.03)'
-              }}
-            >
-              {chatHistory.map((chat, idx) => (
-                <div 
-                  key={idx} 
-                  style={{ 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: chat.sender === 'user' ? 'flex-end' : 'flex-start',
-                    maxWidth: '100%'
-                  }}
-                >
-                  <span style={{ fontSize: '0.55rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
-                    {chat.sender === 'user' ? "Admin" : "GTM Console"}
-                  </span>
-                  <div 
-                    style={{
-                      background: chat.sender === 'user' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.04)',
-                      border: `1px solid ${chat.sender === 'user' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255,255,255,0.06)'}`,
-                      padding: '6px 12px',
-                      borderRadius: '10px',
-                      fontSize: '0.75rem',
-                      color: 'white',
-                      maxWidth: '80%',
-                      lineHeight: '1.4'
+            {boardroomState !== 'idle' ? (
+              // Boardroom debate HUD console
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={16} color="#fbbf24" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24' }}>
+                      C-Suite Boardroom debate
+                    </span>
+                  </div>
+                  <button 
+                    onClick={endBoardroomMeeting}
+                    disabled={boardroomState === 'gathering'}
+                    style={{ 
+                      fontSize: '0.65rem', 
+                      padding: '3px 8px', 
+                      background: 'rgba(239,68,68,0.15)', 
+                      border: '1px solid rgba(239,68,68,0.3)', 
+                      color: '#fca5a5', 
+                      borderRadius: '6px', 
+                      cursor: 'pointer' 
                     }}
                   >
-                    {chat.text}
+                    Adjourn Meeting 👔
+                  </button>
+                </div>
+
+                {/* Debate log */}
+                <div 
+                  style={{
+                    height: '110px',
+                    overflowY: 'auto',
+                    background: 'rgba(0,0,0,0.35)',
+                    borderRadius: '10px',
+                    padding: '10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    border: '1px solid rgba(255,255,255,0.03)'
+                  }}
+                >
+                  {boardroomState === 'gathering' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                      <span className="dot-bounce-1" style={{ width: '4px', height: '4px', background: '#fbbf24', borderRadius: '50%' }} />
+                      <span>Executive VPs are gathering in the boardroom...</span>
+                    </div>
+                  ) : boardroomState === 'dispersing' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                      <span>VPs are dispersing and returning to home cabins...</span>
+                    </div>
+                  ) : debateHistory.length === 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)', fontSize: '0.75rem', textAlign: 'center', padding: '0 10px' }}>
+                      Seed a GTM directive below to trigger the C-Suite debate sequence.
+                    </div>
+                  ) : (
+                    debateHistory.map((debate, idx) => (
+                      <div 
+                        key={idx} 
+                        style={{ 
+                          display: 'flex', 
+                          flexDirection: 'column', 
+                          alignItems: 'flex-start',
+                          maxWidth: '100%'
+                        }}
+                      >
+                        <span style={{ fontSize: '0.55rem', color: '#fbbf24', marginBottom: '2px', fontWeight: 600 }}>
+                          {debate.role}
+                        </span>
+                        <div 
+                          style={{
+                            background: 'rgba(251, 191, 36, 0.08)',
+                            border: '1px solid rgba(251, 191, 36, 0.2)',
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            fontSize: '0.75rem',
+                            color: 'white',
+                            maxWidth: '90%',
+                            lineHeight: '1.4'
+                          }}
+                        >
+                          {debate.text}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Debate input seed form */}
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!debateTopic.trim()) return;
+                    setDebateHistory([]);
+                    setDebateSpeakerIndex(0); // Start with CMO
+                  }} 
+                  style={{ display: 'flex', gap: '10px' }}
+                >
+                  <input 
+                    type="text"
+                    value={debateTopic}
+                    onChange={(e) => setDebateTopic(e.target.value)}
+                    placeholder={
+                      debateSpeakerIndex >= 0 && debateSpeakerIndex < 5
+                        ? "Debate in progress... Please listen."
+                        : "Seed debate topic (e.g. Raise prices by 15% to defend ARR)..."
+                    }
+                    disabled={debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || boardroomState !== 'in_meeting'}
+                    style={{
+                      flex: 1,
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(251, 191, 36, 0.25)',
+                      borderRadius: '10px',
+                      padding: '8px 14px',
+                      color: 'white',
+                      fontSize: '0.75rem',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || !debateTopic.trim() || boardroomState !== 'in_meeting'}
+                    style={{
+                      background: 'linear-gradient(135deg, #d97706, #fbbf24)',
+                      border: 'none',
+                      color: '#000',
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: (debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || !debateTopic.trim() || boardroomState !== 'in_meeting') ? 'not-allowed' : 'pointer',
+                      opacity: (debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || !debateTopic.trim() || boardroomState !== 'in_meeting') ? 0.5 : 1,
+                      boxShadow: '0 2px 8px rgba(251, 191, 36, 0.25)'
+                    }}
+                  >
+                    Debate
+                  </button>
+                </form>
+              </>
+            ) : (
+              // Original console HUD
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={16} color="var(--accent-color)" />
+                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      GTM Direct Action Console
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      onClick={forceAllHands}
+                      style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(129,140,248,0.1)', border: '1px solid rgba(129,140,248,0.2)', color: '#a5b4fc', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      🚨 Boardroom Sync
+                    </button>
+                    <button 
+                      onClick={forceCoffee}
+                      style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(251,113,133,0.1)', border: '1px solid rgba(251,113,133,0.2)', color: '#fda4af', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      ☕ Coffee break
+                    </button>
+                    <button 
+                      onClick={forceHome}
+                      style={{ fontSize: '0.65rem', padding: '3px 8px', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)', color: '#6ee7b7', borderRadius: '6px', cursor: 'pointer' }}
+                    >
+                      ⚙️ Reset desks
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
 
-            {/* Chat Send Form */}
-            <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '10px' }}>
-              <input 
-                type="text"
-                value={chatMessage}
-                onChange={(e) => setChatMessage(e.target.value)}
-                placeholder={
-                  delegationState === 'idle'
-                    ? "Broadcast GTM instruction to C-Suite... (e.g. Aligns outbound lead search sequences)"
-                    : "Delegation animation active. Please wait..."
-                }
-                disabled={delegationState !== 'idle'}
-                style={{
-                  flex: 1,
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  padding: '8px 14px',
-                  color: 'white',
-                  fontSize: '0.75rem',
-                  outline: 'none'
-                }}
-              />
-              <button
-                type="submit"
-                disabled={delegationState !== 'idle'}
-                style={{
-                  background: 'linear-gradient(135deg, var(--accent-color), #2563eb)',
-                  border: 'none',
-                  color: 'white',
-                  padding: '8px 16px',
-                  borderRadius: '10px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: (delegationState === 'idle') ? 'pointer' : 'not-allowed',
-                  opacity: (delegationState === 'idle') ? 1 : 0.5,
-                  boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)'
-                }}
-              >
-                Send
-              </button>
-            </form>
+                {/* Chat Messages Log */}
+                <div 
+                  style={{
+                    height: '110px',
+                    overflowY: 'auto',
+                    background: 'rgba(0,0,0,0.25)',
+                    borderRadius: '10px',
+                    padding: '10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    border: '1px solid rgba(255,255,255,0.03)'
+                  }}
+                >
+                  {chatHistory.map((chat, idx) => (
+                    <div 
+                      key={idx} 
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: chat.sender === 'user' ? 'flex-end' : 'flex-start',
+                        maxWidth: '100%'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.55rem', color: 'var(--text-secondary)', marginBottom: '2px' }}>
+                        {chat.sender === 'user' ? "Admin" : "GTM Console"}
+                      </span>
+                      <div 
+                        style={{
+                          background: chat.sender === 'user' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.04)',
+                          border: `1px solid ${chat.sender === 'user' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255,255,255,0.06)'}`,
+                          padding: '6px 12px',
+                          borderRadius: '10px',
+                          fontSize: '0.75rem',
+                          color: 'white',
+                          maxWidth: '80%',
+                          lineHeight: '1.4'
+                        }}
+                      >
+                        {chat.text}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Chat Send Form */}
+                <form onSubmit={handleSendChat} style={{ display: 'flex', gap: '10px' }}>
+                  <input 
+                    type="text"
+                    value={chatMessage}
+                    onChange={(e) => setChatMessage(e.target.value)}
+                    placeholder={
+                      delegationState === 'idle'
+                        ? "Broadcast GTM instruction to C-Suite... (e.g. Aligns outbound lead search sequences)"
+                        : "Delegation animation active. Please wait..."
+                    }
+                    disabled={delegationState !== 'idle'}
+                    style={{
+                      flex: 1,
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '10px',
+                      padding: '8px 14px',
+                      color: 'white',
+                      fontSize: '0.75rem',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={delegationState !== 'idle'}
+                    style={{
+                      background: 'linear-gradient(135deg, var(--accent-color), #2563eb)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: (delegationState === 'idle') ? 'pointer' : 'not-allowed',
+                      opacity: (delegationState === 'idle') ? 1 : 0.5,
+                      boxShadow: '0 2px 8px rgba(59, 130, 246, 0.25)'
+                    }}
+                  >
+                    Send
+                  </button>
+                </form>
+              </>
+            )}
           </div>
         </div>
 

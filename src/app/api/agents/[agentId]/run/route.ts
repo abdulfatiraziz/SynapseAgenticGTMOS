@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse, waitUntil } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { SynapseConfig, isAgentActive } from '@config';
 import { getSupabaseAdmin } from '@lib/supabaseAdmin';
 import { verifyBearerToken } from '@lib/security/authHelper';
@@ -157,7 +157,7 @@ export async function POST(
     }
   })();
 
-  waitUntil(executionPromise);
+  after(() => executionPromise);
 
   return NextResponse.json(
     { task_id: taskId, status: 'running', agent_id: targetAgentId, task_type, original_agent_id: originalAgentId },

@@ -17,7 +17,8 @@ import {
   Activity,
   Share2,
   Users,
-  Calendar
+  Calendar,
+  Building
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -56,6 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { name: 'Executive Home', icon: LayoutDashboard, path: '/dashboard', id: 'home' },
     { name: 'Control Center', icon: Settings, path: '/dashboard/control-center', id: 'control-center' },
     { name: 'Organization Map', icon: Network, path: '/dashboard/org-map', id: 'org-map' },
+    { name: 'AI Agents Office', icon: Building, path: '/dashboard/agents-office', id: 'agents-office' },
     { name: 'GTM Flow Simulator', icon: Play, path: '/dashboard/simulation', id: 'simulation' },
     { name: 'Agentic Infrastructure', icon: Database, path: '/dashboard/infrastructure', id: 'infrastructure' },
     { name: 'Live Observability', icon: Server, path: '/dashboard/monitoring', id: 'monitoring' },

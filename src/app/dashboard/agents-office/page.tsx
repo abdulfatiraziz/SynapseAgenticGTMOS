@@ -1353,7 +1353,8 @@ export default function AgentsOfficePage() {
   const [debateHistory, setDebateHistory] = useState<Array<{ role: string; text: string }>>([]);
   const [debateSpeakerIndex, setDebateSpeakerIndex] = useState<number>(-1);
   const [debateTopic, setDebateTopic] = useState<string>('');
-  const [activeObjectInteraction, setActiveObjectInteraction] = useState<'espresso' | 'pool' | null>(null);
+  const [activeObjectInteraction, setActiveObjectInteraction] = useState<'espresso' | 'pool' | 'desk' | null>(null);
+  const [showCommandCenter, setShowCommandCenter] = useState<boolean>(false);
 
   // Chat interface states
   const [chatMessage, setChatMessage] = useState<string>('');
@@ -1706,12 +1707,11 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
       const path = findPath(agent.x, agent.y, breakX, breakY);
       if (path && path.length > 0) {
         addLog(`Ambient Break: ${agent.name} is walking to ${breakName}.`);
-        setAgentPaths(prev => ({ ...prev, [agent.id]: path }));
-
         setAgents(prev => prev.map(a => {
           if (a.id === agent.id) {
             return {
               ...a,
+              path: path,
               status: 'talking',
               dialogue: breakMsg,
               dialogueTimer: 6
@@ -1725,11 +1725,9 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
           setAgents(prev => prev.map(a => {
             if (a.id === agent.id) {
               const returnPath = findPath(a.x, a.y, a.homeX, a.homeY);
-              if (returnPath && returnPath.length > 0) {
-                setAgentPaths(prevP => ({ ...prevP, [agent.id]: returnPath }));
-              }
               return {
                 ...a,
+                path: (returnPath && returnPath.length > 0) ? returnPath : undefined,
                 status: 'working',
                 dialogue: "Return to work.",
                 dialogueTimer: 4
@@ -1748,15 +1746,20 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
   useEffect(() => {
     // Espresso Island: cols 1-2, rows 8-9
     // Pool Table: cols 19-20, rows 8-9
+    // Admin Desk: cols 1-2, row 12
     const isNearEspresso = Math.abs(player.x - 1.5) <= 1.5 && Math.abs(player.y - 8.5) <= 1.5;
     const isNearPool = Math.abs(player.x - 19.5) <= 1.5 && Math.abs(player.y - 8.5) <= 1.5;
+    const isNearDesk = Math.abs(player.x - 1.5) <= 1.2 && Math.abs(player.y - 12) <= 1.2;
     
     if (isNearEspresso) {
       setActiveObjectInteraction('espresso');
     } else if (isNearPool) {
       setActiveObjectInteraction('pool');
+    } else if (isNearDesk) {
+      setActiveObjectInteraction('desk');
     } else {
       setActiveObjectInteraction(null);
+      setShowCommandCenter(false);
     }
   }, [player.x, player.y]);
 
@@ -3255,25 +3258,30 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                           e.stopPropagation();
                           if (activeObjectInteraction === 'espresso') handleBrewEspresso();
                           else if (activeObjectInteraction === 'pool') handlePlayPool();
+                          else if (activeObjectInteraction === 'desk') setShowCommandCenter(p => !p);
                         }}
                         style={{
                           position: 'absolute',
                           bottom: '68px',
-                          background: '#10b981',
+                          background: activeObjectInteraction === 'desk' ? '#3b82f6' : '#10b981',
                           color: '#fff',
-                          border: '1.5px solid #34d399',
+                          border: activeObjectInteraction === 'desk' ? '1.5px solid #60a5fa' : '1.5px solid #34d399',
                           borderRadius: '8px',
                           padding: '4px 8px',
                           fontSize: '0.65rem',
                           fontWeight: 'bold',
                           whiteSpace: 'nowrap',
-                          boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
+                          boxShadow: activeObjectInteraction === 'desk'
+                            ? '0 6px 20px rgba(59, 130, 246, 0.4)'
+                            : '0 6px 20px rgba(16, 185, 129, 0.4)',
                           cursor: 'pointer',
                           zIndex: 1000,
                           animation: 'badge-float 1.5s infinite ease-in-out'
                         }}
                       >
-                        {activeObjectInteraction === 'espresso' ? "☕ Brew Espresso" : "🎱 Play Pool"}
+                        {activeObjectInteraction === 'espresso' && "☕ Brew Espresso"}
+                        {activeObjectInteraction === 'pool' && "🎱 Play Pool"}
+                        {activeObjectInteraction === 'desk' && "💻 Command Center"}
                       </div>
                     )}
 
@@ -3621,6 +3629,268 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
               </>
             )}
           </div>
+
+          {/* Admin Command Center Floating Popup Panel */}
+          {showCommandCenter && (
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                left: '20px',
+                width: '540px',
+                maxHeight: '640px',
+                background: 'rgba(15, 23, 42, 0.94)',
+                backdropFilter: 'blur(20px)',
+                border: '1.5px solid rgba(59, 130, 246, 0.45)',
+                borderRadius: '24px',
+                boxShadow: '0 20px 50px rgba(0, 0, 0, 0.65)',
+                color: 'white',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                padding: '20px',
+                overflowY: 'auto',
+                zIndex: 999
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>💻</span>
+                  <div>
+                    <h3 style={{ fontFamily: 'var(--font-sora)', fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>
+                      Admin Command Center
+                    </h3>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                      Summon specific agents to your Admin Cabin guest seat for 1-on-1 collaboration.
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowCommandCenter(false)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '28px',
+                    height: '28px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {agents.map(agent => {
+                  const isSummoned = (agent.x === 3 && agent.y === 12) || (agent.path && agent.path.length > 0 && agent.path[agent.path.length - 1].x === 3 && agent.path[agent.path.length - 1].y === 12);
+                  
+                  return (
+                    <div 
+                      key={agent.id}
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        borderRadius: '12px',
+                        padding: '12px 16px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '8px',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: agent.color }} />
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{agent.name}</span>
+                            <span style={{ fontSize: '0.65rem', padding: '1px 5px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                              {agent.role}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            Dept: {agent.department} • Battery: {agent.battery}% • Status: {agent.status}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => {
+                              setSelectedAgentId(agent.id);
+                              addLog(`🔍 Inspector: Selected ${agent.name} from Command Center.`);
+                            }}
+                            style={{
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              color: '#fff',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Inspect
+                          </button>
+                          {(() => {
+                            const isVp = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'].includes(agent.id);
+                            const isBusyInBoardroom = isVp && boardroomState !== 'idle';
+                            return (
+                              <button
+                                disabled={isBusyInBoardroom}
+                                onClick={() => {
+                                  if (isSummoned) {
+                                    // Dismiss back to home Cabin
+                                    walkMultipleAgents([{ id: agent.id, x: agent.homeX, y: agent.homeY }]);
+                                    setAgents(prev => prev.map(a => {
+                                      if (a.id === agent.id) {
+                                        return {
+                                          ...a,
+                                          status: 'working',
+                                          dialogue: "Returning to my work desk.",
+                                          dialogueTimer: 4
+                                        };
+                                      }
+                                      return a;
+                                    }));
+                                    addLog(`📞 Summon: Dismissed ${agent.name} back to home cabin.`);
+                                  } else {
+                                    // Summon to Admin Cabin guest seat
+                                    walkMultipleAgents([{ id: agent.id, x: 3, y: 12 }]);
+                                    setAgents(prev => prev.map(a => {
+                                      if (a.id === agent.id) {
+                                        return {
+                                          ...a,
+                                          status: 'talking',
+                                          dialogue: "Heading to your cabin, Admin.",
+                                          dialogueTimer: 4
+                                        };
+                                      }
+                                      return a;
+                                    }));
+                                    addLog(`📞 Summon: Calling ${agent.name} to the Admin Cabin.`);
+                                  }
+                                }}
+                                style={{
+                                  background: isBusyInBoardroom
+                                    ? 'rgba(255, 255, 255, 0.05)'
+                                    : isSummoned 
+                                      ? 'linear-gradient(135deg, #4b5563, #374151)' 
+                                      : 'linear-gradient(135deg, #10b981, #059669)',
+                                  border: isBusyInBoardroom ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                                  color: isBusyInBoardroom ? 'var(--text-secondary)' : 'white',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: 600,
+                                  cursor: isBusyInBoardroom ? 'not-allowed' : 'pointer',
+                                  boxShadow: isBusyInBoardroom
+                                    ? 'none'
+                                    : isSummoned 
+                                      ? 'none' 
+                                      : '0 2px 8px rgba(16, 185, 129, 0.25)'
+                                }}
+                              >
+                                {isBusyInBoardroom ? 'Busy in Sync' : isSummoned ? 'Send Back' : 'Summon'}
+                              </button>
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {/* Chat directly inside the Command Center popup for summoned agents */}
+                      {isSummoned && (
+                        <div 
+                          style={{ 
+                            marginTop: '4px',
+                            paddingTop: '8px',
+                            borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px'
+                          }}
+                        >
+                          {activeAgentChats[agent.id] && activeAgentChats[agent.id].length > 0 && (
+                            <div 
+                              style={{ 
+                                fontSize: '0.7rem', 
+                                background: 'rgba(0,0,0,0.2)', 
+                                padding: '6px 10px', 
+                                borderRadius: '6px', 
+                                color: '#cbd5e1',
+                                borderLeft: `2px solid ${agent.color}`
+                              }}
+                            >
+                              <span style={{ fontWeight: 600, color: agent.color }}>
+                                {agent.shortLabel}:
+                              </span>{" "}
+                              {activeAgentChats[agent.id][activeAgentChats[agent.id].length - 1].text}
+                            </div>
+                          )}
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const val = bubbleInputs[agent.id] || '';
+                              if (val.trim()) {
+                                handleBubbleSubmit(agent.id, val);
+                              }
+                            }}
+                            style={{ display: 'flex', gap: '6px', width: '100%' }}
+                          >
+                            <input 
+                              type="text" 
+                              placeholder={`Chat with ${agent.shortLabel}...`}
+                              value={bubbleInputs[agent.id] || ''}
+                              onChange={(e) => {
+                                setBubbleInputs(prev => ({ ...prev, [agent.id]: e.target.value }));
+                              }}
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                              }}
+                              style={{
+                                  flex: 1,
+                                  background: 'rgba(0,0,0,0.25)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: '6px',
+                                  padding: '6px 10px',
+                                  fontSize: '0.7rem',
+                                  color: 'white',
+                                  outline: 'none'
+                              }}
+                              disabled={agentThinkingState[agent.id]}
+                            />
+                            <button
+                              type="submit"
+                              disabled={agentThinkingState[agent.id] || !(bubbleInputs[agent.id] || '').trim()}
+                              style={{
+                                background: agent.color,
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '6px 12px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                opacity: (bubbleInputs[agent.id] || '').trim() ? 1 : 0.6
+                              }}
+                            >
+                              {agentThinkingState[agent.id] ? '...' : 'Send'}
+                            </button>
+                          </form>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Panel: Operations Dossier HUD & Console with Premium Glassmorphism */}
@@ -3752,79 +4022,164 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                   Force Override Dispatch Task
                 </button>
 
-                {/* Call to Admin Cabin / Send Back Button */}
+                {/* Call to Admin Cabin / Send Back Button & Chat */}
                 {(() => {
-                  const isSummoned = activeAgent.x === 3 && activeAgent.y === 12;
+                  const isSummoned = (activeAgent.x === 3 && activeAgent.y === 12) || (activeAgent.path && activeAgent.path.length > 0 && activeAgent.path[activeAgent.path.length - 1].x === 3 && activeAgent.path[activeAgent.path.length - 1].y === 12);
+                  const isVp = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'].includes(activeAgent.id);
+                  const isBusyInBoardroom = isVp && boardroomState !== 'idle';
                   return (
-                    <button
-                      onClick={() => {
-                        if (isSummoned) {
-                          // Dismiss back to home Cabin
-                          walkMultipleAgents([{ id: activeAgent.id, x: activeAgent.homeX, y: activeAgent.homeY }]);
-                          setAgents(prev => prev.map(a => {
-                            if (a.id === activeAgent.id) {
-                              return {
-                                ...a,
-                                status: 'working',
-                                dialogue: "Returning to my work desk.",
-                                dialogueTimer: 4
-                              };
-                            }
-                            return a;
-                          }));
-                          addLog(`📞 Summon: Dismissed ${activeAgent.name} back to home cabin.`);
-                        } else {
-                          // Summon to Admin Cabin guest seat
-                          walkMultipleAgents([{ id: activeAgent.id, x: 3, y: 12 }]);
-                          setAgents(prev => prev.map(a => {
-                            if (a.id === activeAgent.id) {
-                              return {
-                                ...a,
-                                status: 'talking',
-                                dialogue: "Heading to your cabin, Admin.",
-                                dialogueTimer: 4
-                              };
-                            }
-                            return a;
-                          }));
-                          addLog(`📞 Summon: Calling ${activeAgent.name} to the Admin Cabin.`);
-                        }
-                      }}
-                      style={{
-                        width: '100%',
-                        background: isSummoned 
-                          ? 'linear-gradient(135deg, #4b5563, #374151)' 
-                          : 'linear-gradient(135deg, #10b981, #059669)',
-                        border: 'none',
-                        color: 'white',
-                        padding: '8px 14px',
-                        borderRadius: '10px',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '6px',
-                        boxShadow: isSummoned 
-                          ? '0 4px 15px rgba(0, 0, 0, 0.25)' 
-                          : '0 4px 15px rgba(16, 185, 129, 0.25)',
-                        transition: 'all 0.2s',
-                        marginTop: '8px'
-                      }}
-                    >
-                      {isSummoned ? (
-                        <>
-                          <Home size={12} />
-                          Send Back to Work Cabin
-                        </>
-                      ) : (
-                        <>
-                          <PhoneCall size={12} />
-                          Call to Admin Cabin
-                        </>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                      <button
+                        disabled={isBusyInBoardroom}
+                        onClick={() => {
+                          if (isSummoned) {
+                            // Dismiss back to home Cabin
+                            walkMultipleAgents([{ id: activeAgent.id, x: activeAgent.homeX, y: activeAgent.homeY }]);
+                            setAgents(prev => prev.map(a => {
+                              if (a.id === activeAgent.id) {
+                                return {
+                                  ...a,
+                                  status: 'working',
+                                  dialogue: "Returning to my work desk.",
+                                  dialogueTimer: 4
+                                };
+                              }
+                              return a;
+                            }));
+                            addLog(`📞 Summon: Dismissed ${activeAgent.name} back to home cabin.`);
+                          } else {
+                            // Summon to Admin Cabin guest seat
+                            walkMultipleAgents([{ id: activeAgent.id, x: 3, y: 12 }]);
+                            setAgents(prev => prev.map(a => {
+                              if (a.id === activeAgent.id) {
+                                return {
+                                  ...a,
+                                  status: 'talking',
+                                  dialogue: "Heading to your cabin, Admin.",
+                                  dialogueTimer: 4
+                                };
+                              }
+                              return a;
+                            }));
+                            addLog(`📞 Summon: Calling ${activeAgent.name} to the Admin Cabin.`);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          background: isBusyInBoardroom
+                            ? 'rgba(255, 255, 255, 0.05)'
+                            : isSummoned 
+                              ? 'linear-gradient(135deg, #4b5563, #374151)' 
+                              : 'linear-gradient(135deg, #10b981, #059669)',
+                          border: isBusyInBoardroom ? '1px solid rgba(255, 255, 255, 0.1)' : 'none',
+                          color: isBusyInBoardroom ? 'var(--text-secondary)' : 'white',
+                          padding: '8px 14px',
+                          borderRadius: '10px',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          cursor: isBusyInBoardroom ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          boxShadow: isBusyInBoardroom
+                            ? 'none'
+                            : isSummoned 
+                              ? '0 4px 15px rgba(0, 0, 0, 0.25)' 
+                              : '0 4px 15px rgba(16, 185, 129, 0.25)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        {isBusyInBoardroom ? (
+                          <>
+                            <Users size={12} />
+                            Busy in Boardroom Sync
+                          </>
+                        ) : isSummoned ? (
+                          <>
+                            <Home size={12} />
+                            Send Back to Work Cabin
+                          </>
+                        ) : (
+                          <>
+                            <PhoneCall size={12} />
+                            Call to Admin Cabin
+                          </>
+                        )}
+                      </button>
+
+                      {isSummoned && (
+                        <div style={{ marginTop: '4px', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            1-on-1 Chat Connection
+                          </h4>
+                          {activeAgentChats[activeAgent.id] && activeAgentChats[activeAgent.id].length > 0 && (
+                            <div 
+                              style={{ 
+                                fontSize: '0.7rem', 
+                                background: 'rgba(0,0,0,0.25)', 
+                                padding: '8px 12px', 
+                                borderRadius: '8px', 
+                                color: '#cbd5e1',
+                                borderLeft: `2.5px solid ${activeAgent.color}`
+                              }}
+                            >
+                              {activeAgentChats[activeAgent.id][activeAgentChats[activeAgent.id].length - 1].text}
+                            </div>
+                          )}
+                          <form
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                              const val = bubbleInputs[activeAgent.id] || '';
+                              if (val.trim()) {
+                                handleBubbleSubmit(activeAgent.id, val);
+                              }
+                            }}
+                            style={{ display: 'flex', gap: '8px', width: '100%' }}
+                          >
+                            <input 
+                              type="text" 
+                              placeholder={`Chat with ${activeAgent.shortLabel}...`}
+                              value={bubbleInputs[activeAgent.id] || ''}
+                              onChange={(e) => {
+                                setBubbleInputs(prev => ({ ...prev, [activeAgent.id]: e.target.value }));
+                              }}
+                              onKeyDown={(e) => {
+                                e.stopPropagation();
+                              }}
+                              style={{
+                                flex: 1,
+                                background: 'rgba(0,0,0,0.3)',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '8px',
+                                padding: '8px 12px',
+                                fontSize: '0.75rem',
+                                color: 'white',
+                                outline: 'none'
+                              }}
+                              disabled={agentThinkingState[activeAgent.id]}
+                            />
+                            <button
+                              type="submit"
+                              disabled={agentThinkingState[activeAgent.id] || !(bubbleInputs[activeAgent.id] || '').trim()}
+                              style={{
+                                background: activeAgent.color,
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '8px',
+                                padding: '8px 14px',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                opacity: (bubbleInputs[activeAgent.id] || '').trim() ? 1 : 0.6
+                              }}
+                            >
+                              {agentThinkingState[activeAgent.id] ? '...' : 'Send'}
+                            </button>
+                          </form>
+                        </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })()}
               </div>

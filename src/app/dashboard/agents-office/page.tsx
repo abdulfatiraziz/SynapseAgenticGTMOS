@@ -1314,6 +1314,18 @@ const liveWinLogs = [
   "PLG Agent triaged 14 high-intent user signups, mapping them automatically to HubSpot CRM."
 ];
 
+const WallSegment = ({ style, themeMode }: { style: React.CSSProperties; themeMode: 'day' | 'night' }) => (
+  <div
+    style={{
+      backgroundColor: themeMode === 'night' ? '#1e293b' : '#ffffff',
+      border: `1.5px solid ${themeMode === 'night' ? '#4f46e5' : '#64748b'}`,
+      boxShadow: themeMode === 'night' ? '0 0 8px rgba(79, 70, 229, 0.5)' : '0 1.5px 3px rgba(0, 0, 0, 0.1)',
+      borderRadius: '4px',
+      ...style
+    }}
+  />
+);
+
 export default function AgentsOfficePage() {
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
   const [player, setPlayer] = useState({
@@ -1365,6 +1377,12 @@ export default function AgentsOfficePage() {
   // Delegation pipeline states
   const [delegationState, setDelegationState] = useState<'idle' | 'exec_consulting' | 'exec_walking_to_dept' | 'dept_aligning' | 'returning'>('idle');
   const [activeInstruction, setActiveInstruction] = useState<string>('');
+
+  // Appends a new simulation log
+  const addLog = (message: string) => {
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setSimulationLogs(prev => [`[${time}] ${message}`, ...prev.slice(0, 25)]);
+  };
 
   const handleBubbleSubmit = async (agentId: string, text: string) => {
     if (!text.trim()) return;
@@ -1804,12 +1822,6 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
 
   // Active voice status check
   const isNearActive = activeAgent ? proximityAgentId === activeAgent.id : false;
-
-  // Appends a new simulation log
-  const addLog = (message: string) => {
-    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    setSimulationLogs(prev => [`[${time}] ${message}`, ...prev.slice(0, 25)]);
-  };
 
   // Keyboard Movement Listener
   useEffect(() => {
@@ -2643,85 +2655,69 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
               })()}
 
               {/* 3. Continuous Wall Partitions (with thickness & shadow) */}
-              {(() => {
-                const WallSegment = ({ style }: { style: React.CSSProperties }) => (
-                  <div
-                    style={{
-                      backgroundColor: themeMode === 'night' ? '#1e293b' : '#ffffff',
-                      border: `1.5px solid ${themeMode === 'night' ? '#4f46e5' : '#64748b'}`,
-                      boxShadow: themeMode === 'night' ? '0 0 8px rgba(79, 70, 229, 0.5)' : '0 1.5px 3px rgba(0, 0, 0, 0.1)',
-                      borderRadius: '4px',
-                      ...style
-                    }}
-                  />
-                );
-                
-                return (
-                  <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
-                    {/* Outer boundaries */}
-                    {/* Top wall: row 2 */}
-                    <WallSegment style={{ position: 'absolute', left: '38px', top: '116px', width: '884px', height: '8px' }} />
-                    {/* Bottom wall: row 15 */}
-                    <WallSegment style={{ position: 'absolute', left: '38px', top: '596px', width: '884px', height: '8px' }} />
-                    {/* Left wall: col 0 */}
-                    <WallSegment style={{ position: 'absolute', left: '38px', top: '116px', width: '8px', height: '488px' }} />
-                    {/* Right wall: col 23 */}
-                    <WallSegment style={{ position: 'absolute', left: '914px', top: '116px', width: '8px', height: '488px' }} />
+              <div style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 5 }}>
+                {/* Outer boundaries */}
+                {/* Top wall: row 2 */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '38px', top: '116px', width: '884px', height: '8px' }} />
+                {/* Bottom wall: row 15 */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '38px', top: '596px', width: '884px', height: '8px' }} />
+                {/* Left wall: col 0 */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '38px', top: '116px', width: '8px', height: '488px' }} />
+                {/* Right wall: col 23 */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '914px', top: '116px', width: '8px', height: '488px' }} />
 
-                    {/* Internal Vertical Partitions for Top Cabins (Rows 3-6) */}
-                    {/* CMO and VP Sales Divider (between Col 3 and Col 4) */}
-                    <WallSegment style={{ position: 'absolute', left: '156px', top: '118px', width: '8px', height: '162px' }} />
-                    {/* VP Sales and VP PMM Divider (between Col 5 and Col 6) */}
-                    <WallSegment style={{ position: 'absolute', left: '236px', top: '118px', width: '8px', height: '162px' }} />
-                    {/* VP PMM and Corridor Divider (between Col 7 and Col 8) */}
-                    <WallSegment style={{ position: 'absolute', left: '316px', top: '118px', width: '8px', height: '162px' }} />
-                    {/* Corridor and VP CS Divider (between Col 8 and Col 9) */}
-                    <WallSegment style={{ position: 'absolute', left: '356px', top: '118px', width: '8px', height: '162px' }} />
-                    {/* VP CS and VP Partnerships Divider (between Col 11 and Col 12) */}
-                    <WallSegment style={{ position: 'absolute', left: '476px', top: '118px', width: '8px', height: '162px' }} />
-                    {/* VP Partnerships and Corridor Divider (between Col 14 and Col 15) */}
-                    <WallSegment style={{ position: 'absolute', left: '596px', top: '118px', width: '8px', height: '162px' }} />
+                {/* Internal Vertical Partitions for Top Cabins (Rows 3-6) */}
+                {/* CMO and VP Sales Divider (between Col 3 and Col 4) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '156px', top: '118px', width: '8px', height: '162px' }} />
+                {/* VP Sales and VP PMM Divider (between Col 5 and Col 6) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '236px', top: '118px', width: '8px', height: '162px' }} />
+                {/* VP PMM and Corridor Divider (between Col 7 and Col 8) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '316px', top: '118px', width: '8px', height: '162px' }} />
+                {/* Corridor and VP CS Divider (between Col 8 and Col 9) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '356px', top: '118px', width: '8px', height: '162px' }} />
+                {/* VP CS and VP Partnerships Divider (between Col 11 and Col 12) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '476px', top: '118px', width: '8px', height: '162px' }} />
+                {/* VP Partnerships and Corridor Divider (between Col 14 and Col 15) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '596px', top: '118px', width: '8px', height: '162px' }} />
 
-                    {/* Internal Horizontal Divider Walls for Top Cabins (Row 6/7 boundary) */}
-                    {/* CMO bottom wall: Col 1-2 (door at Col 3) */}
-                    <WallSegment style={{ position: 'absolute', left: '40px', top: '276px', width: '80px', height: '8px' }} />
-                    {/* VP Sales bottom wall: Col 4 (door at Col 5) */}
-                    <WallSegment style={{ position: 'absolute', left: '160px', top: '276px', width: '40px', height: '8px' }} />
-                    {/* VP PMM bottom wall: Col 6 (door at Col 7) */}
-                    <WallSegment style={{ position: 'absolute', left: '240px', top: '276px', width: '40px', height: '8px' }} />
-                    {/* VP CS bottom wall: Col 9 & Col 11 (door at Col 10) */}
-                    <WallSegment style={{ position: 'absolute', left: '360px', top: '276px', width: '40px', height: '8px' }} />
-                    <WallSegment style={{ position: 'absolute', left: '440px', top: '276px', width: '40px', height: '8px' }} />
-                    {/* VP Partnerships bottom wall: Col 12 & Col 14 (door at Col 13) */}
-                    <WallSegment style={{ position: 'absolute', left: '480px', top: '276px', width: '40px', height: '8px' }} />
-                    <WallSegment style={{ position: 'absolute', left: '560px', top: '276px', width: '40px', height: '8px' }} />
+                {/* Internal Horizontal Divider Walls for Top Cabins (Row 6/7 boundary) */}
+                {/* CMO bottom wall: Col 1-2 (door at Col 3) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '40px', top: '276px', width: '80px', height: '8px' }} />
+                {/* VP Sales bottom wall: Col 4 (door at Col 5) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '160px', top: '276px', width: '40px', height: '8px' }} />
+                {/* VP PMM bottom wall: Col 6 (door at Col 7) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '240px', top: '276px', width: '40px', height: '8px' }} />
+                {/* VP CS bottom wall: Col 9 & Col 11 (door at Col 10) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '360px', top: '276px', width: '40px', height: '8px' }} />
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '440px', top: '276px', width: '40px', height: '8px' }} />
+                {/* VP Partnerships bottom wall: Col 12 & Col 14 (door at Col 13) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '480px', top: '276px', width: '40px', height: '8px' }} />
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '560px', top: '276px', width: '40px', height: '8px' }} />
 
-                    {/* Internal Vertical Partitions for Bottom Cabins (Rows 11-14) */}
-                    {/* Admin and Critic Divider (between Col 5 and Col 6) */}
-                    <WallSegment style={{ position: 'absolute', left: '236px', top: '438px', width: '8px', height: '162px' }} />
-                    {/* Critic and Corridor Divider (between Col 7 and Col 8) */}
-                    <WallSegment style={{ position: 'absolute', left: '316px', top: '438px', width: '8px', height: '162px' }} />
-                    {/* Corridor and Boardroom Divider (between Col 8 and Col 9) */}
-                    <WallSegment style={{ position: 'absolute', left: '356px', top: '438px', width: '8px', height: '162px' }} />
-                    {/* Boardroom right wall with doorway at Row 12 */}
-                    <WallSegment style={{ position: 'absolute', left: '596px', top: '438px', width: '8px', height: '44px' }} />
-                    <WallSegment style={{ position: 'absolute', left: '596px', top: '520px', width: '8px', height: '80px' }} />
+                {/* Internal Vertical Partitions for Bottom Cabins (Rows 11-14) */}
+                {/* Admin and Critic Divider (between Col 5 and Col 6) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '236px', top: '438px', width: '8px', height: '162px' }} />
+                {/* Critic and Corridor Divider (between Col 7 and Col 8) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '316px', top: '438px', width: '8px', height: '162px' }} />
+                {/* Corridor and Boardroom Divider (between Col 8 and Col 9) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '356px', top: '438px', width: '8px', height: '162px' }} />
+                {/* Boardroom right wall with doorway at Row 12 */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '596px', top: '438px', width: '8px', height: '44px' }} />
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '596px', top: '520px', width: '8px', height: '80px' }} />
 
-                    {/* Internal Horizontal Divider Walls for Bottom Cabins (Row 10/11 boundary) */}
-                    {/* Admin Cabin top: Col 1-2 & Col 4-5 (door at Col 3) */}
-                    <WallSegment style={{ position: 'absolute', left: '40px', top: '436px', width: '80px', height: '8px' }} />
-                    <WallSegment style={{ position: 'absolute', left: '160px', top: '436px', width: '80px', height: '8px' }} />
-                    {/* Critic Cabin top: Col 6 (door at Col 7) */}
-                    <WallSegment style={{ position: 'absolute', left: '240px', top: '436px', width: '40px', height: '8px' }} />
-                    {/* Boardroom top: closed wall since top doors were removed */}
-                    <WallSegment style={{ position: 'absolute', left: '360px', top: '436px', width: '240px', height: '8px' }} />
+                {/* Internal Horizontal Divider Walls for Bottom Cabins (Row 10/11 boundary) */}
+                {/* Admin Cabin top: Col 1-2 & Col 4-5 (door at Col 3) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '40px', top: '436px', width: '80px', height: '8px' }} />
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '160px', top: '436px', width: '80px', height: '8px' }} />
+                {/* Critic Cabin top: Col 6 (door at Col 7) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '240px', top: '436px', width: '40px', height: '8px' }} />
+                {/* Boardroom top: closed wall since top doors were removed */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '360px', top: '436px', width: '240px', height: '8px' }} />
 
-                    {/* Col 15 Divider (Bullpen left wall, entry at Row 7, Row 11 completed) */}
-                    <WallSegment style={{ position: 'absolute', left: '636px', top: '118px', width: '8px', height: '162px' }} />
-                    <WallSegment style={{ position: 'absolute', left: '636px', top: '320px', width: '8px', height: '280px' }} />
-                  </div>
-                );
-              })()}
+                {/* Col 15 Divider (Bullpen left wall, entry at Row 7, Row 11 completed) */}
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '636px', top: '118px', width: '8px', height: '162px' }} />
+                <WallSegment themeMode={themeMode} style={{ position: 'absolute', left: '636px', top: '320px', width: '8px', height: '280px' }} />
+              </div>
 
               {/* 4. Open Doors Layer (Visual Swing Indicators) */}
               {(() => {

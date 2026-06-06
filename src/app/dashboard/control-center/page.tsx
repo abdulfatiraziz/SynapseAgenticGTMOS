@@ -15,7 +15,11 @@ import {
   AlertTriangle,
   HelpCircle,
   Undo2,
-  X
+  X,
+  Key,
+  Lock,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import s from "./page.module.css";
 
@@ -71,6 +75,49 @@ const INTEGRATION_TOOLS = [
   { key: "PostHog", name: "PostHog", emoji: "📈" }
 ];
 
+/* ─── Mappings of Integration Tools to Env Variable Keys ─── */
+const TOOL_KEYS_MAP: Record<string, Array<{ key: string; label: string; placeholder?: string }>> = {
+  "HubSpot": [
+    { key: "HUBSPOT_CLIENT_ID", label: "Client ID" },
+    { key: "HUBSPOT_CLIENT_SECRET", label: "Client Secret" },
+    { key: "HUBSPOT_CODE_VERIFIER", label: "Code Verifier" }
+  ],
+  "Apollo": [
+    { key: "APOLLO_API_KEY", label: "API Key" }
+  ],
+  "Clay": [
+    { key: "CLAY_WEBHOOK_URL", label: "Webhook URL" }
+  ],
+  "Slack": [
+    { key: "SLACK_BOT_TOKEN", label: "Bot Token" }
+  ],
+  "Notion": [
+    { key: "NOTION_API_KEY", label: "API Key" }
+  ],
+  "Gumloop": [
+    { key: "GUMLOOP_API_KEY", label: "API Key" },
+    { key: "GUMLOOP_USER_ID", label: "User ID" }
+  ],
+  "GoogleAds": [
+    { key: "GOOGLE_ADS_DEVELOPER_TOKEN", label: "Developer Token" },
+    { key: "GOOGLE_ADS_CUSTOMER_ID", label: "Customer ID" },
+    { key: "GOOGLE_ADS_CLIENT_ID", label: "Client ID" },
+    { key: "GOOGLE_ADS_CLIENT_SECRET", label: "Client Secret" },
+    { key: "GOOGLE_ADS_REFRESH_TOKEN", label: "Refresh Token" }
+  ],
+  "MetaAds": [
+    { key: "META_ADS_ACCESS_TOKEN", label: "Access Token" },
+    { key: "META_ADS_AD_ACCOUNT_ID", label: "Ad Account ID" }
+  ],
+  "Make": [
+    { key: "MAKE_API_TOKEN", label: "API Token" },
+    { key: "MAKE_TOOLBOX_ID", label: "Toolbox ID" }
+  ],
+  "Ahrefs": [
+    { key: "AHREFS_API_KEY", label: "API Key" }
+  ]
+};
+
 export default function ControlCenter() {
   const [activeTab, setActiveTab] = useState<"company" | "agents" | "tools" | "hitl" | "budgets">("company");
   const [config, setConfig] = useState<any>(null);
@@ -93,9 +140,62 @@ export default function ControlCenter() {
   const [canaryV2Id, setCanaryV2Id] = useState("");
   const [canarySplit, setCanarySplit] = useState(10);
 
+  // Credentials States
+  const [credentials, setCredentials] = useState<Record<string, { exists: boolean; value: string }>>({});
+  const [credentialsLoaded, setCredentialsLoaded] = useState(false);
+  const [expandedTool, setExpandedTool] = useState<string | null>(null);
+  const [updatingToolKey, setUpdatingToolKey] = useState<string | null>(null);
+  const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
+
   const showFeedback = (text: string, type: "success" | "error") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 5000);
+  };
+
+  const fetchCredentials = async () => {
+    try {
+      const res = await fetch("/api/config/credentials");
+      const data = await res.json();
+      if (data.success) {
+        setCredentials(data.credentials);
+        setCredentialsLoaded(true);
+      }
+    } catch (e) {
+      console.error("Failed to load credentials from .env.local", e);
+    }
+  };
+
+  const handleSaveCredential = async (toolKey: string) => {
+    const fields = TOOL_KEYS_MAP[toolKey];
+    if (!fields) return;
+    
+    setUpdatingToolKey(toolKey);
+    const updates: Record<string, string> = {};
+    for (const field of fields) {
+      const val = credentials[field.key]?.value || "";
+      if (val.trim()) {
+        updates[field.key] = val.trim();
+      }
+    }
+    
+    try {
+      const res = await fetch("/api/config/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credentials: updates })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showFeedback(`Credentials for ${toolKey} updated successfully!`, "success");
+        fetchCredentials();
+      } else {
+        showFeedback(`Failed to save credentials: ${data.error}`, "error");
+      }
+    } catch (e) {
+      showFeedback("Error saving credentials to server", "error");
+    } finally {
+      setUpdatingToolKey(null);
+    }
   };
 
   const fetchConfig = async () => {
@@ -120,6 +220,7 @@ export default function ControlCenter() {
   // Fetch initial config
   useEffect(() => {
     fetchConfig();
+    fetchCredentials();
   }, []);
 
   // Check if configuration has been modified
@@ -543,10 +644,39 @@ export default function ControlCenter() {
                 const effectiveMode = currentOverride ?? config.tools.default_mode;
                 
                 return (
-                  <div key={tool.key} className={s.toolCard}>
-                    <div className={s.toolCardHeader}>
-                      <span className={s.toolEmoji}>{tool.emoji}</span>
-                      <span className={s.toolName}>{tool.name}</span>
+                  <div 
+                    key={tool.key} 
+                    className={`${s.toolCard} ${expandedTool === tool.key ? s.activeCard : ""}`}
+                    style={expandedTool === tool.key ? { borderColor: "rgba(59, 130, 246, 0.4)", boxShadow: "0 0 15px rgba(59, 130, 246, 0.15)" } : {}}
+                  >
+                    <div className={s.toolCardHeader} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <span className={s.toolEmoji}>{tool.emoji}</span>
+                        <span className={s.toolName}>{tool.name}</span>
+                      </div>
+                      {TOOL_KEYS_MAP[tool.key] && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedTool(expandedTool === tool.key ? null : tool.key);
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            color: expandedTool === tool.key ? "var(--accent-color)" : "var(--text-secondary)",
+                            padding: "4px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "color 0.2s",
+                            borderRadius: "4px"
+                          }}
+                          title="Configure API Credentials"
+                        >
+                          <Key size={14} style={{ transform: expandedTool === tool.key ? "rotate(-45deg)" : "none", transition: "transform 0.3s ease" }} />
+                        </button>
+                      )}
                     </div>
 
                     <div className={s.modeToggle}>
@@ -586,6 +716,133 @@ export default function ControlCenter() {
                         {effectiveMode === "live" ? "● Connected (Live)" : "○ Smart Mocks"}
                       </span>
                     </div>
+
+                    {TOOL_KEYS_MAP[tool.key] && expandedTool === tool.key && (
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          marginTop: "12px",
+                          paddingTop: "12px",
+                          borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px",
+                          animation: `${s.slideUp} 0.2s cubic-bezier(0.16, 1, 0.3, 1)`
+                        }}
+                      >
+                        <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <Lock size={12} />
+                          <span>CREDENTIALS CONFIG</span>
+                        </div>
+                        
+                        {TOOL_KEYS_MAP[tool.key].map(field => {
+                          const hasValue = credentials[field.key]?.exists || false;
+                          const currentVal = credentials[field.key]?.value || "";
+                          const isShowing = showKeys[field.key] || false;
+                          
+                          return (
+                            <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                              <label style={{ fontSize: "0.7rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase" }}>
+                                {field.label}
+                              </label>
+                              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                                <input
+                                  type={isShowing ? "text" : "password"}
+                                  value={currentVal}
+                                  placeholder={hasValue ? "••••••••" : "Not configured"}
+                                  onChange={(e) => {
+                                    setCredentials(prev => ({
+                                      ...prev,
+                                      [field.key]: {
+                                        exists: prev[field.key]?.exists ?? false,
+                                        value: e.target.value
+                                      }
+                                    }));
+                                  }}
+                                  style={{
+                                    width: "100%",
+                                    background: "rgba(0, 0, 0, 0.2)",
+                                    border: "1px solid var(--border-color)",
+                                    borderRadius: "6px",
+                                    padding: "8px 32px 8px 10px",
+                                    fontSize: "0.8rem",
+                                    color: "var(--text-primary)",
+                                    fontFamily: "var(--font-inter)",
+                                    outline: "none",
+                                    transition: "border-color 0.2s"
+                                  }}
+                                  onFocus={(e) => e.target.style.borderColor = "var(--accent-color)"}
+                                  onBlur={(e) => e.target.style.borderColor = "var(--border-color)"}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowKeys(prev => ({ ...prev, [field.key]: !prev[field.key] }))}
+                                  style={{
+                                    position: "absolute",
+                                    right: "8px",
+                                    background: "transparent",
+                                    border: "none",
+                                    color: "var(--text-secondary)",
+                                    cursor: "pointer",
+                                    padding: "2px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center"
+                                  }}
+                                >
+                                  {isShowing ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                        
+                        <button
+                          onClick={() => handleSaveCredential(tool.key)}
+                          disabled={updatingToolKey === tool.key}
+                          style={{
+                            background: "linear-gradient(135deg, var(--accent-color), #6366f1)",
+                            color: "#fff",
+                            border: "none",
+                            borderRadius: "6px",
+                            padding: "8px",
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            marginTop: "6px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            transition: "all 0.2s"
+                          }}
+                          onMouseEnter={(e) => {
+                            if (updatingToolKey !== tool.key) {
+                              e.currentTarget.style.transform = "translateY(-1px)";
+                              e.currentTarget.style.boxShadow = "0 4px 12px rgba(59, 130, 246, 0.3)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = "none";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
+                        >
+                          {updatingToolKey === tool.key ? (
+                            <>
+                              <svg className={s.spinner} viewBox="0 0 50 50" style={{ width: "12px", height: "12px" }}>
+                                <circle className={s.spinnerCircle} cx="25" cy="25" r="20" fill="none" strokeWidth="4" />
+                              </svg>
+                              <span>Saving...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save size={12} />
+                              <span>Update Keys</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

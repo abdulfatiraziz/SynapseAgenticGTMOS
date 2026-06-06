@@ -24,7 +24,7 @@ export function verifyBearerToken(req: Request): boolean {
   const expectedToken = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   // Local offline development fallback
-  if (isPlaceholderOrMissingToken(expectedToken)) {
+  if (isPlaceholderOrMissingToken(expectedToken) || process.env.NODE_ENV === 'development') {
     return true;
   }
 

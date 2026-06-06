@@ -11,7 +11,10 @@ import {
   Moon,
   Sun,
   Home,
-  PhoneCall
+  PhoneCall,
+  Download,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 // Tile types:
@@ -92,6 +95,9 @@ interface Agent {
   activity: string;
   shortLabel: string;
   path?: { x: number; y: number }[];
+  customTaskText?: string;
+  customTaskDestination?: { x: number; y: number } | null;
+  customTaskTimer?: number;
 }
 
 // 2D Projection settings
@@ -170,6 +176,7 @@ const furnitureItems: Furniture[] = [
   { x: 19, y: 13, type: 'plant_potted', path: '', w: 1, h: 1 }, // Bottom-center bullpen
   { x: 5, y: 8, type: 'plant_potted', path: '', w: 1, h: 1 }, // Canteen walkway divider
   { x: 8, y: 3, type: 'plant_potted', path: '', w: 1, h: 1 }, // Corridor corner
+  { x: 8, y: 8, type: 'water_cooler', path: '', w: 1, h: 1 },
 ];
 
 const isTileWalkable = (x: number, y: number) => {
@@ -577,6 +584,21 @@ const renderFurnitureSVG = (type: string, theme: 'day' | 'night') => {
           <rect x="12" y="13" width="32" height="3" rx="0.5" fill="#222" />
           <circle cx="44" cy="14" r="2" fill="#8d6e63" />
           <circle cx="44" cy="14" r="1.2" fill="#4caf50" />
+        </svg>
+      );
+
+    case 'water_cooler':
+      return (
+        <svg width="100%" height="100%" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <ellipse cx="20" cy="28" rx="8" ry="4" fill="#000" fillOpacity="0.15" />
+          <rect x="14" y="22" width="12" height="8" rx="1.5" fill={theme === 'night' ? '#1e293b' : '#94a3b8'} stroke={theme === 'night' ? '#4f5b66' : '#64748b'} strokeWidth="1" />
+          <rect x="12" y="10" width="16" height="13" rx="2" fill={theme === 'night' ? '#334155' : '#e2e8f0'} stroke={theme === 'night' ? '#475569' : '#cbd5e1'} strokeWidth="1" />
+          <rect x="16" y="18" width="2" height="3" fill="#ef4444" rx="0.5" />
+          <rect x="22" y="18" width="2" height="3" fill="#3b82f6" rx="0.5" />
+          <rect x="15" y="21" width="10" height="2" fill="#1e293b" />
+          <rect x="13" y="2" width="14" height="9" rx="3" fill="#38bdf8" fillOpacity="0.75" stroke="#0ea5e9" strokeWidth="1" />
+          <line x1="15" y1="5" x2="25" y2="5" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="1" />
+          <line x1="17" y1="8" x2="23" y2="8" stroke="#ffffff" strokeOpacity="0.5" strokeWidth="1" />
         </svg>
       );
 
@@ -1002,6 +1024,30 @@ const AgentAvatar = ({
   );
 };
 
+// Helper to determine if an agent is currently on break and charging battery
+const isAgentCharging = (agent: Agent) => {
+  const dialogueLower = agent.dialogue?.toLowerCase() || '';
+  const onBreakDialogue = dialogueLower.includes('☕') || 
+                           dialogueLower.includes('🛋️') || 
+                           dialogueLower.includes('🎱') || 
+                           dialogueLower.includes('💧') || 
+                           dialogueLower.includes('espresso') || 
+                           dialogueLower.includes('sofa') || 
+                           dialogueLower.includes('pool') || 
+                           dialogueLower.includes('water cooler') || 
+                           dialogueLower.includes('break');
+
+  if (onBreakDialogue) return true;
+
+  // Spatial coordinates
+  const isAtCanteen = agent.x >= 1 && agent.x <= 5 && agent.y >= 8 && agent.y <= 9;
+  const isAtLounge = agent.x >= 6 && agent.x <= 7 && agent.y >= 8 && agent.y <= 9;
+  const isAtWaterCooler = agent.x === 8 && agent.y === 8;
+  const isAtPoolTable = agent.x >= 19 && agent.x <= 20 && agent.y >= 8 && agent.y <= 9;
+
+  return isAtCanteen || isAtLounge || isAtWaterCooler || isAtPoolTable;
+};
+
 // 18 Agents grouped as per department categorization
 const initialAgents: Agent[] = [
   { 
@@ -1326,6 +1372,27 @@ const WallSegment = ({ style, themeMode }: { style: React.CSSProperties; themeMo
   />
 );
 
+const AGENT_THOUGHTS: Record<string, string[]> = {
+  cmo: ["Refining GTM strategy... 📈", "Reviewing CAC payback... 📊", "Analyzing overall pipeline... 💼"],
+  vp_sales: ["Reviewing team quota... 📈", "Analyzing Clari forecast... 📊", "Inspecting high-value deals... 🤝"],
+  vp_cs: ["Reviewing customer CSAT... ❤️", "Analyzing NRR metrics... 📊", "Drafting QBR deck... 🎴"],
+  vp_partnerships: ["Mapping partner overlaps... 🗺️", "Reviewing Crossbeam data... 🤝", "Drafting co-sell playbooks... 📖"],
+  critic: ["Auditing playbook execution... ⚖️", "Grading trajectory steps... 📝", "Comparing KPIs... 📊"],
+  seo: ["Researching keywords... 🔑", "Reviewing blog drafts... 📝", "Checking backlink health... 🔗"],
+  demand_gen: ["Allocating ad budgets... 💰", "Reviewing campaign CTR... 📈", "Optimizing paid search... 🔍"],
+  vp_pmm: ["Drafting buyer persona... 👤", "Reviewing product mockups... 🎨", "Creating competitive deck... 🎴"],
+  market_intel: ["Monitoring competitor G2... 🔍", "Reading market reports... 📰", "Scanning LinkedIn Navigator... 🌐"],
+  sdr_mgr: ["Reviewing outreach sequences... ✉️", "Checking reply rates... 📊", "Enriching lead lists... 🗂️"],
+  outbound_sdr: ["Personalizing cold outreach... ✉️", "Verifying email deliverability... 📧", "Queueing prospects... 👥"],
+  expansion_ae: ["Identifying upsell signals... 🚀", "Reviewing product usage... 📈", "Drafting expansion proposal... 📄"],
+  revops: ["Debugging Salesforce flow... ⚙️", "Validating lead routing... 🗺️", "Checking data enrichment... 🗂️"],
+  plg: ["Analyzing product funnel... 📉", "Reviewing A/B test results... 🧪", "Optimizing signup flow... 🚀"],
+  broker: ["Relaying handoff tokens... ⛓️", "Checking integration sync... ⚙️", "Validating system payload... 🗂️"],
+  csm: ["Onboarding new customer... 👋", "Reviewing Gainsight health... 🏥", "Preparing renewal brief... 📝"],
+  renewals: ["Checking contract expirations... 📅", "NRR defense modeling... 🛡️", "Preparing contract renewal... ✍️"],
+  community: ["Monitoring Slack signals... 💬", "Checking brand mentions... 📣", "Drafting community brief... 📝"]
+};
+
 export default function AgentsOfficePage() {
   const [agents, setAgents] = useState<Agent[]>(initialAgents);
   const [player, setPlayer] = useState({
@@ -1360,13 +1427,266 @@ export default function AgentsOfficePage() {
   const [bubbleInputs, setBubbleInputs] = useState<Record<string, string>>({});
 
   // Boardroom debate & Live office states
+  const [redTeamAudit, setRedTeamAudit] = useState<{ score: number; critique: string } | null>(null);
 
   const [boardroomState, setBoardroomState] = useState<'idle' | 'gathering' | 'in_meeting' | 'dispersing'>('idle');
   const [debateHistory, setDebateHistory] = useState<Array<{ role: string; text: string }>>([]);
   const [debateSpeakerIndex, setDebateSpeakerIndex] = useState<number>(-1);
   const [debateTopic, setDebateTopic] = useState<string>('');
+  const [selectedBoardroomVps, setSelectedBoardroomVps] = useState<string[]>(['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm']);
+  const [isManualDebateStep, setIsManualDebateStep] = useState<boolean>(false);
+  const [debateModeratorText, setDebateModeratorText] = useState<string>('');
+  const [lastModeratorInput, setLastModeratorInput] = useState<string>('');
   const [activeObjectInteraction, setActiveObjectInteraction] = useState<'espresso' | 'pool' | 'desk' | null>(null);
   const [showCommandCenter, setShowCommandCenter] = useState<boolean>(false);
+
+  // States for Custom Task Dispatch & Web Audio Soundscapes (Option 1 & 4)
+  const [customTaskInput, setCustomTaskInput] = useState('');
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [audioCtx, setAudioCtx] = useState<AudioContext | null>(null);
+
+  // Dynamic Audio Synthesizers via Web Audio API
+  const playKeyboardClick = (ctx: AudioContext) => {
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    
+    filter.type = 'bandpass';
+    filter.frequency.value = 1000 + Math.random() * 800;
+    filter.Q.value = 10;
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(150, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(800 + Math.random() * 400, ctx.currentTime + 0.05);
+    
+    gainNode.gain.setValueAtTime(0.015, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.06);
+    
+    osc.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.07);
+  };
+
+  const playWaterBubble = (ctx: AudioContext) => {
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    
+    osc.type = 'sine';
+    const startFreq = 300 + Math.random() * 100;
+    osc.frequency.setValueAtTime(startFreq, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(startFreq * 2.2, ctx.currentTime + 0.12);
+    
+    gainNode.gain.setValueAtTime(0.04, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.13);
+    
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.14);
+  };
+
+  const playPoolClink = (ctx: AudioContext) => {
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+    
+    filter.type = 'highpass';
+    filter.frequency.value = 2500;
+    
+    osc1.type = 'triangle';
+    osc1.frequency.setValueAtTime(3200, ctx.currentTime);
+    
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(4100, ctx.currentTime);
+    
+    gainNode.gain.setValueAtTime(0.03, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
+    
+    osc1.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(ctx.destination);
+    
+    osc1.start();
+    osc2.start();
+    osc1.stop(ctx.currentTime + 0.09);
+    osc2.stop(ctx.currentTime + 0.09);
+  };
+
+  const toggleAudio = () => {
+    if (audioEnabled) {
+      if (audioCtx) {
+        audioCtx.close();
+      }
+      setAudioCtx(null);
+      setAudioEnabled(false);
+      addLog("🔇 Soundscape disabled.");
+    } else {
+      const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+      if (Ctx) {
+        const ctx = new Ctx();
+        setAudioCtx(ctx);
+        setAudioEnabled(true);
+        addLog("🔊 Interactive soundscape enabled!");
+      } else {
+        addLog("⚠️ Audio Error: Web Audio API not supported in this browser.");
+      }
+    }
+  };
+
+  // Dispatch custom GTM task to specific workstation based on keywords (Option 1)
+  const handleCustomTaskDispatch = (agentId: string, taskText: string) => {
+    const taskLower = taskText.toLowerCase();
+    let targetX = 15;
+    let targetY = 7; // default corridor/whiteboard area
+    let destinationLabel = 'Whiteboard';
+
+    if (taskLower.includes('database') || taskLower.includes('sql') || taskLower.includes('server') || taskLower.includes('data') || taskLower.includes('query')) {
+      targetX = 8;
+      targetY = 10;
+      destinationLabel = 'Database Server';
+    } else if (taskLower.includes('copy') || taskLower.includes('print') || taskLower.includes('scan') || taskLower.includes('document') || taskLower.includes('xerox')) {
+      targetX = 9;
+      targetY = 10;
+      destinationLabel = 'Copy Machine';
+    } else if (taskLower.includes('board') || taskLower.includes('draw') || taskLower.includes('sketch') || taskLower.includes('plan') || taskLower.includes('design') || taskLower.includes('brainstorm')) {
+      targetX = 15;
+      targetY = 7;
+      destinationLabel = 'Whiteboard';
+    }
+
+    setAgents(prev => prev.map(a => {
+      if (a.id === agentId) {
+        const path = findPath(a.x, a.y, targetX, targetY);
+        if (!path || path.length === 0 || path.includes('NO_PATH' as any) || path.includes('BLOCKED_TARGET' as any)) {
+          addLog(`⚠️ Pathfinding: No path to ${destinationLabel} for ${a.name}.`);
+          return a;
+        }
+        addLog(`🏃‍♂️ Dispatch: Sending ${a.name} to ${destinationLabel} for task: "${taskText}"`);
+        return {
+          ...a,
+          path,
+          status: 'moving',
+          activity: `Walking to ${destinationLabel}`,
+          dialogue: `Heading to ${destinationLabel}... 🏃‍♂️`,
+          dialogueTimer: 4,
+          customTaskText: taskText,
+          customTaskDestination: { x: targetX, y: targetY }
+        };
+      }
+      return a;
+    }));
+    setCustomTaskInput('');
+  };
+
+  // Playbook Export Function (Option 2)
+  const exportAuditPlaybook = React.useCallback(() => {
+    if (!redTeamAudit) return;
+    const debateHistoryText = debateHistory.map(d => `${d.role}: "${d.text}"`).join('\n');
+    const playbookText = `================================================================
+GTM STRATEGY FEASIBILITY AUDIT PLAYBOOK (RED-TEAM EVALUATION)
+================================================================
+Generated on: ${new Date().toLocaleString()}
+
+DEBATE TOPIC:
+"${debateTopic}"
+
+PARTICIPATING VPs:
+${['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'].filter(id => selectedBoardroomVps.includes(id)).map(id => {
+  const name = initialAgents.find(a => a.id === id)?.name || id;
+  return "- " + name;
+}).join('\n')}
+
+================================================================
+DEBATE TRANSCRIPT:
+================================================================
+${debateHistoryText || 'No transcript available.'}
+
+================================================================
+RED-TEAM STRATEGY FEASIBILITY AUDIT:
+================================================================
+FEASIBILITY SCORE: ${redTeamAudit.score}%
+
+CRITIQUE SUMMARY:
+"${redTeamAudit.critique}"
+
+================================================================
+RECOMMENDED REMEDIATION ACTIONS:
+================================================================
+1. Address the channel-strategy gaps identified by the Critic.
+2. Refine the outbound / GTM targeting tactics to align with VP feedback.
+3. Align customer success NRR protection plans with sales expectations.
+================================================================
+`;
+    const blob = new Blob([playbookText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = "gtm-audit-playbook-" + Date.now() + ".txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    addLog("📥 Export: Downloaded GTM audit playbook report.");
+  }, [redTeamAudit, debateHistory, debateTopic, selectedBoardroomVps]);
+
+  // Ambient office background hum (Option 4)
+  useEffect(() => {
+    if (!audioEnabled || !audioCtx) return;
+    const osc = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.value = 55;
+    
+    osc2.type = 'triangle';
+    osc2.frequency.value = 110;
+    
+    gainNode.gain.value = 0.003;
+    
+    osc.connect(gainNode);
+    osc2.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    osc.start();
+    osc2.start();
+    
+    return () => {
+      try {
+        osc.stop();
+        osc2.stop();
+      } catch(e) {}
+    };
+  }, [audioEnabled, audioCtx]);
+
+  // Audio Scheduler Loop (Option 4)
+  useEffect(() => {
+    if (!audioEnabled || !audioCtx) return;
+    const interval = setInterval(() => {
+      const workingAgents = agents.filter(a => a.status === 'working' && !a.path?.length);
+      if (workingAgents.length > 0 && Math.random() < 0.6) {
+        playKeyboardClick(audioCtx);
+      }
+      const nearWaterCooler = agents.some(a => a.x === 8 && a.y === 8);
+      if (nearWaterCooler && Math.random() < 0.35) {
+        playWaterBubble(audioCtx);
+      }
+      const nearPool = agents.some(a => a.x >= 18 && a.x <= 20 && a.y >= 8 && a.y <= 9);
+      if (nearPool && Math.random() < 0.15) {
+        playPoolClink(audioCtx);
+      }
+    }, 300);
+    return () => clearInterval(interval);
+  }, [audioEnabled, audioCtx, agents]);
 
   // Chat interface states
   const [chatMessage, setChatMessage] = useState<string>('');
@@ -1379,10 +1699,10 @@ export default function AgentsOfficePage() {
   const [activeInstruction, setActiveInstruction] = useState<string>('');
 
   // Appends a new simulation log
-  const addLog = (message: string) => {
+  function addLog(message: string) {
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     setSimulationLogs(prev => [`[${time}] ${message}`, ...prev.slice(0, 25)]);
-  };
+  }
 
   const handleBubbleSubmit = async (agentId: string, text: string) => {
     if (!text.trim()) return;
@@ -1518,10 +1838,22 @@ export default function AgentsOfficePage() {
             let dialogue = a.dialogue;
             let dialogueTimer = a.dialogueTimer;
             let status = a.status;
+            let customTaskTimer = a.customTaskTimer;
+            let customTaskDestination = a.customTaskDestination;
+            let activity = a.activity;
+            let isMoving = true;
 
             // Handle arrival triggers
             if (remaining.length === 0) {
-              if (nextStep.x === 3 && nextStep.y === 12) {
+              if (a.customTaskDestination && nextStep.x === a.customTaskDestination.x && nextStep.y === a.customTaskDestination.y) {
+                dialogue = `Executing task: "${a.customTaskText}" ⚡`;
+                dialogueTimer = 10;
+                status = 'working';
+                customTaskTimer = 10;
+                customTaskDestination = null;
+                activity = `Executing task: ${a.customTaskText}`;
+                isMoving = false;
+              } else if (nextStep.x === 3 && nextStep.y === 12) {
                 dialogue = "Yes, Admin? Ready to sync.";
                 dialogueTimer = 8;
                 status = 'talking';
@@ -1538,11 +1870,14 @@ export default function AgentsOfficePage() {
               x: nextStep.x,
               y: nextStep.y,
               direction: dir,
-              isMoving: true,
+              isMoving,
               path: remaining,
               dialogue,
               dialogueTimer,
-              status
+              status,
+              customTaskTimer,
+              customTaskDestination,
+              activity
             };
           } else if (a.isMoving) {
             updated = true;
@@ -1562,13 +1897,18 @@ export default function AgentsOfficePage() {
   useEffect(() => {
     if (boardroomState !== 'gathering') return;
 
-    const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'];
+    const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm', 'critic'].filter(id => selectedBoardroomVps.includes(id));
+    if (vps.length === 0) {
+      setBoardroomState('idle');
+      return;
+    }
     const vpDestinations: Record<string, {x: number, y: number}> = {
       cmo: { x: 9, y: 12 },
       vp_sales: { x: 9, y: 13 },
       vp_cs: { x: 12, y: 12 },
       vp_partnerships: { x: 12, y: 13 },
-      vp_pmm: { x: 11, y: 11 }
+      vp_pmm: { x: 11, y: 11 },
+      critic: { x: 10, y: 14 }
     };
 
     const allArrived = vps.every(id => {
@@ -1592,13 +1932,13 @@ export default function AgentsOfficePage() {
         return a;
       }));
     }
-  }, [agents, boardroomState]);
+  }, [agents, boardroomState, selectedBoardroomVps]);
 
   // Boardroom Meeting dispersal detector: returns state to idle once VPs reach home cabins
   useEffect(() => {
     if (boardroomState !== 'dispersing') return;
 
-    const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'];
+    const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm', 'critic'].filter(id => selectedBoardroomVps.includes(id));
     const allReturned = vps.every(id => {
       const agent = agents.find(a => a.id === id);
       return agent && agent.x === agent.homeX && agent.y === agent.homeY;
@@ -1608,15 +1948,15 @@ export default function AgentsOfficePage() {
       setBoardroomState('idle');
       addLog("👔 Boardroom: Alignment complete. VPs back to work cabins.");
     }
-  }, [agents, boardroomState]);
+  }, [agents, boardroomState, selectedBoardroomVps]);
 
   // Boardroom debate turn runner: handles sequential speaking using Gemini API
   useEffect(() => {
-    if (boardroomState !== 'in_meeting' || debateSpeakerIndex < 0 || debateSpeakerIndex >= 5) return;
+    const activeVps = ['cmo', 'vp_sales', 'vp_cs', 'vp_pmm', 'vp_partnerships', 'critic'].filter(id => selectedBoardroomVps.includes(id));
+    if (boardroomState !== 'in_meeting' || debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length) return;
 
     const runDebateTurn = async () => {
-      const vps = ['cmo', 'vp_sales', 'vp_cs', 'vp_pmm', 'vp_partnerships'];
-      const speakerId = vps[debateSpeakerIndex];
+      const speakerId = activeVps[debateSpeakerIndex];
       const speaker = agents.find(a => a.id === speakerId);
       if (!speaker) return;
 
@@ -1625,9 +1965,22 @@ export default function AgentsOfficePage() {
 
       // Format previous debate history for Gemini
       const previousComments = debateHistory.map(d => `[${d.role}]: "${d.text}"`).join('\n');
-      const seedPrompt = `We are having a boardroom debate regarding the GTM directive: "${debateTopic}".
+      
+      const moderatorDirectivePrompt = lastModeratorInput
+        ? `\n\nCRITICAL MODERATOR DIRECTIVE TO INJECT IMMEDIATELY INTO YOUR RESPONSE:\n"${lastModeratorInput}"\n(You must directly address, respond to, or integrate this directive into your statement.)`
+        : "";
+
+      const seedPrompt = speakerId === 'critic'
+        ? `We are having a boardroom debate regarding the GTM directive: "${debateTopic}".
 Preceding comments in the debate:
-${previousComments || "(No comments yet. You are starting the debate.)"}
+${previousComments || "(No comments yet. You are starting the debate.)"}${moderatorDirectivePrompt}
+
+You are the Critic Agent. Your role is: ${speaker.role}.
+Please critically evaluate the preceding statements, identify GTM holes, unrealistic assumptions, or friction points, and provide a sharp, red-team critique of the proposed GTM strategy.
+Keep your response to exactly 1 or 2 concise, impactful sentences representing your critical view. Do not use JSON or markdown. Just output clean speech text.`
+        : `We are having a boardroom debate regarding the GTM directive: "${debateTopic}".
+Preceding comments in the debate:
+${previousComments || "(No comments yet. You are starting the debate.)"}${moderatorDirectivePrompt}
 
 Please provide your response to this GTM directive and any preceding comments from the perspective of your role: ${speaker.role}.
 Keep your response to exactly 1 or 2 concise, impactful sentences representing your department's view. Do not use JSON or markdown. Just output clean speech text.`;
@@ -1658,7 +2011,7 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                 status: 'talking'
               };
             }
-            if (vps.includes(a.id)) {
+            if (activeVps.includes(a.id)) {
               return {
                 ...a,
                 dialogue: null,
@@ -1672,6 +2025,7 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
           // Add to debate history log
           setDebateHistory(prev => [...prev, { role: speaker.shortLabel, text: data.reply }]);
           addLog(`👔 Debate: [${speaker.shortLabel}] spoken: "${data.reply}"`);
+          setLastModeratorInput('');
         }
       } catch (err) {
         console.error('Debate turn error:', err);
@@ -1679,16 +2033,89 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
         setAgentThinkingState(prev => ({ ...prev, [speakerId]: false }));
         
         // Wait 10 seconds for the user to read the bubble, then proceed to the next speaker!
-        setTimeout(() => {
-          setDebateSpeakerIndex(prev => prev + 1);
-        }, 10000);
+        if (!isManualDebateStep) {
+          setTimeout(() => {
+            setDebateSpeakerIndex(prev => prev + 1);
+          }, 10000);
+        }
       }
     };
 
     runDebateTurn();
-  }, [debateSpeakerIndex, boardroomState]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debateSpeakerIndex, boardroomState, selectedBoardroomVps, isManualDebateStep]);
 
-  // Ambient Breaks Loop: occasionally walks random agents to Canteen, Lounge, or Pool Table
+  // Trigger final red-team strategy audit when debate completes
+  useEffect(() => {
+    const activeVps = ['cmo', 'vp_sales', 'vp_cs', 'vp_pmm', 'vp_partnerships', 'critic'].filter(id => selectedBoardroomVps.includes(id));
+    if (boardroomState === 'in_meeting' && debateSpeakerIndex === activeVps.length && activeVps.length > 0 && debateHistory.length > 0 && !redTeamAudit) {
+      const runStrategyAudit = async () => {
+        addLog("🛡️ Strategy Audit: Critic Agent is running GTM feasibility analysis...");
+        // Set critic thinking state
+        setAgentThinkingState(prev => ({ ...prev, critic: true }));
+
+        const debateTranscript = debateHistory.map(d => `[${d.role}]: "${d.text}"`).join('\n');
+        
+        const auditPrompt = `You are the Critic Agent, a Strategy Evaluator in a GTM team.
+We have just completed a boardroom debate regarding the GTM topic: "${debateTopic}".
+Here is the transcript of the debate:
+${debateTranscript}
+
+Please run a comprehensive Red-Team audit of this proposed GTM strategy. You must output your results in JSON format with exactly the following structure:
+{
+  "score": <an integer between 0 and 100 representing feasibility>,
+  "critique": "<a sharp, concise 2-sentence critique identifying key points of failure, friction, or unrealistic assumptions>"
+}
+Do not include any markdown formatting or surrounding text, just the raw JSON object.`;
+
+        try {
+          const response = await fetch('/api/agents/chat', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              agentId: 'critic',
+              message: auditPrompt,
+              history: []
+            })
+          });
+
+          const data = await response.json();
+          if (data.reply) {
+            let cleanText = data.reply.trim();
+            if (cleanText.startsWith('```')) {
+              cleanText = cleanText.replace(/^```json\s*/, '').replace(/```$/, '').trim();
+            }
+            try {
+              const auditResult = JSON.parse(cleanText);
+              if (typeof auditResult.score === 'number' && auditResult.critique) {
+                setRedTeamAudit({
+                  score: auditResult.score,
+                  critique: auditResult.critique
+                });
+                addLog(`🛡️ Strategy Audit: Feasibility Score ${auditResult.score}%. Critique: "${auditResult.critique}"`);
+              }
+            } catch (parseErr) {
+              console.error("Failed to parse strategy audit JSON:", cleanText, parseErr);
+              setRedTeamAudit({
+                score: 65,
+                critique: "Strategy evaluation complete. Potential alignment gaps and execution friction points detected in cross-department handoffs."
+              });
+            }
+          }
+        } catch (err) {
+          console.error("Strategy audit request failed:", err);
+        } finally {
+          setAgentThinkingState(prev => ({ ...prev, critic: false }));
+        }
+      };
+
+      runStrategyAudit();
+    }
+  }, [debateSpeakerIndex, boardroomState, debateHistory, selectedBoardroomVps, debateTopic, redTeamAudit]);
+
+  // Ambient Breaks Loop: occasionally walks random agents to Canteen, Lounge, Pool Table, or Water Cooler
   useEffect(() => {
     if (!simRunning || boardroomState !== 'idle' || delegationState !== 'idle') return;
 
@@ -1703,8 +2130,8 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
       // Make sure they are currently at home workstation
       if (agent.x !== agent.homeX || agent.y !== agent.homeY) return;
 
-      // Select break area: 0 = Espresso Bar, 1 = Sofa, 2 = Pool Table
-      const breakType = Math.floor(Math.random() * 3);
+      // Select break area: 0 = Espresso Bar, 1 = Sofa, 2 = Pool Table, 3 = Water Cooler
+      const breakType = Math.floor(Math.random() * 4);
       let breakX = 1;
       let breakY = 8;
       let breakName = "Espresso Island";
@@ -1720,6 +2147,11 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
         breakY = 8;
         breakName = "Pool Table";
         breakMsg = "Playing a quick game of pool... 🎱";
+      } else if (breakType === 3) {
+        breakX = 8;
+        breakY = 8;
+        breakName = "Water Cooler";
+        breakMsg = "Chatting by the water cooler... 💧";
       }
 
       const path = findPath(agent.x, agent.y, breakX, breakY);
@@ -1958,22 +2390,101 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
   }, [themeMode]);
 
   // Dialogue countdown timer loop: decrements dialogue timers and auto-clears dialogue when expired
+  // ALSO increments battery during breaks (Option C) & manages custom task durations (Option 1)
   useEffect(() => {
     const timer = setInterval(() => {
       setAgents(prev => prev.map(a => {
-        if (a.dialogueTimer > 0) {
-          const nextTimer = a.dialogueTimer - 1;
-          return {
-            ...a,
-            dialogueTimer: nextTimer,
-            dialogue: nextTimer === 0 ? null : a.dialogue
-          };
+        let newBattery = a.battery;
+        const isCharging = isAgentCharging(a);
+        if (isCharging) {
+          newBattery = Math.min(100, a.battery + 8);
         }
-        return a;
+
+        let nextDialogueTimer = a.dialogueTimer;
+        let nextDialogue = a.dialogue;
+        if (a.dialogueTimer > 0) {
+          nextDialogueTimer = a.dialogueTimer - 1;
+          if (nextDialogueTimer === 0) {
+            nextDialogue = null;
+          }
+        }
+
+        let newCustomTaskTimer = a.customTaskTimer;
+        let path = a.path;
+        let status = a.status;
+        let activity = a.activity;
+        let customTaskText = a.customTaskText;
+        let customTaskDestination = a.customTaskDestination;
+
+        if (a.customTaskTimer !== undefined && a.customTaskTimer > 0) {
+          newCustomTaskTimer = a.customTaskTimer - 1;
+          if (newCustomTaskTimer === 0) {
+            // Timer expired! Trigger return home pathfinding.
+            path = findPath(a.x, a.y, a.homeX, a.homeY) || [];
+            status = 'moving';
+            activity = 'Returning to desk';
+            nextDialogue = 'Finished custom task. Returning to my desk. 🏃‍♂️';
+            nextDialogueTimer = 4;
+            customTaskText = undefined;
+            newCustomTaskTimer = undefined;
+            customTaskDestination = null;
+          } else {
+            nextDialogue = `Executing task: "${a.customTaskText}" (${newCustomTaskTimer}s left) ⚡`;
+            nextDialogueTimer = 2; // Keep dialogue bubble open
+          }
+        }
+
+        return {
+          ...a,
+          battery: newBattery,
+          dialogueTimer: nextDialogueTimer,
+          dialogue: nextDialogue,
+          customTaskTimer: newCustomTaskTimer,
+          path,
+          status,
+          activity,
+          customTaskText,
+          customTaskDestination
+        };
       }));
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Workstation Micro-Animations: occasionally rotates or spawns thought bubbles for idle/working agents
+  useEffect(() => {
+    if (!simRunning) return;
+
+    const interval = setInterval(() => {
+      setAgents(prev => prev.map(a => {
+        // Only target agents at their home workstation who are not currently talking/moving
+        if (a.x === a.homeX && a.y === a.homeY && !a.path?.length && (a.status === 'working' || a.status === 'idle') && !a.dialogue) {
+          const rand = Math.random();
+          if (rand < 0.25) {
+            // 25% chance to rotate to a new random direction
+            const dirs: ('up' | 'down' | 'left' | 'right')[] = ['up', 'down', 'left', 'right'];
+            const nextDir = dirs[Math.floor(Math.random() * dirs.length)];
+            
+            // 8% chance to also think a role-specific thought
+            if (Math.random() < 0.08) {
+              const thoughts = AGENT_THOUGHTS[a.id] || ["Analyzing KPIs... 📊", "Reviewing strategy... 💼"];
+              const thought = thoughts[Math.floor(Math.random() * thoughts.length)];
+              return {
+                ...a,
+                direction: nextDir,
+                dialogue: thought,
+                dialogueTimer: 3
+              };
+            }
+            return { ...a, direction: nextDir };
+          }
+        }
+        return a;
+      }));
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [simRunning]);
 
   // Handle Submit Chat to C-Suite
   const handleSendChat = (e: React.FormEvent) => {
@@ -2147,6 +2658,9 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
     setBoardroomState('gathering');
     setDebateHistory([]);
     setDebateSpeakerIndex(-1);
+    setLastModeratorInput('');
+    setDebateModeratorText('');
+    setRedTeamAudit(null); // Reset audit dashboard
     addLog("👔 Boardroom: Calling VPs to gather around the boardroom table.");
     
     const vpSeats = [
@@ -2154,8 +2668,9 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
       { id: 'vp_sales', x: 9, y: 13 },
       { id: 'vp_cs', x: 12, y: 12 },
       { id: 'vp_partnerships', x: 12, y: 13 },
-      { id: 'vp_pmm', x: 11, y: 11 }
-    ];
+      { id: 'vp_pmm', x: 11, y: 11 },
+      { id: 'critic', x: 10, y: 14 }
+    ].filter(seat => selectedBoardroomVps.includes(seat.id));
     
     setAgents(prev => prev.map(a => {
       const isVp = vpSeats.some(v => v.id === a.id);
@@ -2182,8 +2697,9 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
       { id: 'vp_sales', x: 4, y: 5 },
       { id: 'vp_cs', x: 10, y: 5 },
       { id: 'vp_partnerships', x: 13, y: 5 },
-      { id: 'vp_pmm', x: 6, y: 5 }
-    ];
+      { id: 'vp_pmm', x: 6, y: 5 },
+      { id: 'critic', x: 6, y: 13 }
+    ].filter(seat => selectedBoardroomVps.includes(seat.id));
     
     setAgents(prev => prev.map(a => {
       const isVp = homeSeats.some(h => h.id === a.id);
@@ -2229,6 +2745,8 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
   const forceHome = () => {
     walkAllToDesks();
   };
+
+  const activeVps = ['cmo', 'vp_sales', 'vp_cs', 'vp_pmm', 'vp_partnerships', 'critic'].filter(id => selectedBoardroomVps.includes(id));
 
   return (
     <div style={{ position: 'relative', width: '100%', minHeight: '100vh', paddingBottom: '40px' }}>
@@ -2290,6 +2808,33 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
           >
             {themeMode === 'day' ? <Moon size={14} color="#a855f7" /> : <Sun size={14} color="#f59e0b" />}
             {themeMode === 'day' ? "Night Mode" : "Day Mode"}
+          </button>
+
+          {/* Sound Toggle Button (Option 4) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleAudio();
+            }}
+            style={{
+              background: 'rgba(22, 25, 35, 0.55)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              padding: '8px 16px',
+              borderRadius: '10px',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              transition: 'all 0.2s'
+            }}
+          >
+            {audioEnabled ? <Volume2 size={14} color="#10b981" /> : <VolumeX size={14} color="#ef4444" />}
+            {audioEnabled ? "Sound On" : "Sound Off"}
           </button>
 
           {/* Speed settings */}
@@ -2750,20 +3295,56 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                 row.map((cell, x) => {
                   const { isoX, isoY } = projectIso(x, y);
                   const isWalkable = isTileWalkable(x, y) && !isCellBlocked(x, y);
+                  const isInteractableObstacle = isCellBlocked(x, y) && (x >= 0 && x < 24 && y >= 0 && y < 18);
                   
                   return (
                     <div 
                       key={`tile-${x}-${y}`}
                       onClick={() => {
-                        if (isWalkable && delegationState === 'idle') {
+                        if (delegationState !== 'idle') return;
+                        
+                        if (isWalkable) {
                           const path = findPath(player.x, player.y, x, y);
                           if (path.length > 0) {
                             setPlayerPath(path);
                             setClickRipple({ x, y, id: Math.random() });
                             setTimeout(() => setClickRipple(null), 500);
                           }
+                        } else if (isInteractableObstacle) {
+                          // Clicked on blocked cell/furniture: walk to nearest adjacent walkable neighbor
+                          const neighbors = [
+                            { x: x - 1, y },
+                            { x: x + 1, y },
+                            { x, y: y - 1 },
+                            { x, y: y + 1 }
+                          ];
+                          let shortestPath: { x: number, y: number }[] | null = null;
+
+                          for (const n of neighbors) {
+                            if (isTileWalkable(n.x, n.y) && !isCellBlocked(n.x, n.y)) {
+                              if (player.x === n.x && player.y === n.y) {
+                                // Player is already adjacent, just play ripple on clicked cell
+                                setClickRipple({ x, y, id: Math.random() });
+                                setTimeout(() => setClickRipple(null), 500);
+                                return;
+                              }
+                              const path = findPath(player.x, player.y, n.x, n.y);
+                              if (path.length > 0) {
+                                if (!shortestPath || path.length < shortestPath.length) {
+                                  shortestPath = path;
+                                }
+                              }
+                            }
+                          }
+
+                          if (shortestPath) {
+                            setPlayerPath(shortestPath);
+                            setClickRipple({ x, y, id: Math.random() });
+                            setTimeout(() => setClickRipple(null), 500);
+                          }
                         }
                       }}
+                      id={`tile-${x}-${y}`}
                       style={{
                         position: 'absolute',
                         left: `${isoX}px`,
@@ -2772,8 +3353,8 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                         height: `${TILE_HEIGHT}px`,
                         backgroundColor: 'transparent',
                         border: 'none',
-                        zIndex: isWalkable ? 2 : 1,
-                        cursor: isWalkable ? 'pointer' : 'default'
+                        zIndex: 2, // catch clicks anywhere on the board
+                        cursor: isWalkable || isInteractableObstacle ? 'pointer' : 'default'
                       }}
                     />
                   );
@@ -2909,6 +3490,8 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                 const widthPx = item.w * TILE_WIDTH;
                 const heightPx = item.h * TILE_HEIGHT;
                 
+                const isLightingItem = item.type.includes('desk') || item.type.includes('table') || item.type.includes('island');
+
                 return (
                   <div
                     key={`furn-${idx}`}
@@ -2923,6 +3506,46 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                     }}
                   >
                     {renderFurnitureSVG(item.type, themeMode)}
+                    
+                    {/* Volumetric Night Spotlight (Option 3) */}
+                    {themeMode === 'night' && isLightingItem && (
+                      <>
+                        {/* Under-desk/table radial yellow spotlight */}
+                        <div 
+                          className="lamp-flickering"
+                          style={{
+                            position: 'absolute',
+                            left: '50%',
+                            top: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: `${Math.max(widthPx * 2.5, 90)}px`,
+                            height: `${Math.max(heightPx * 2.5, 90)}px`,
+                            borderRadius: '50%',
+                            background: 'radial-gradient(circle, rgba(251,191,36,0.3) 0%, rgba(251,191,36,0.08) 50%, rgba(251,191,36,0) 70%)',
+                            zIndex: -1,
+                            pointerEvents: 'none'
+                          }}
+                        />
+                        {/* Physical bulb dot on top of desk/table */}
+                        <div 
+                          className="lamp-flickering"
+                          style={{
+                            position: 'absolute',
+                            left: '50%',
+                            top: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            backgroundColor: '#fbbf24',
+                            boxShadow: '0 0 10px #fbbf24, 0 0 20px #fbbf24',
+                            border: '1px solid #fff',
+                            zIndex: 10,
+                            pointerEvents: 'none'
+                          }}
+                        />
+                      </>
+                    )}
                   </div>
                 );
               })}
@@ -2941,6 +3564,8 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                 else if (agent.status === 'talking') { statusColor = '#3b82f6'; isPulsing = true; }
                 else if (agent.status === 'recharging') { statusColor = '#f59e0b'; isPulsing = true; }
                 else if (agent.status === 'sleeping') { statusColor = '#a855f7'; }
+
+                const isCharging = isAgentCharging(agent);
 
                 return (
                   <div
@@ -2965,6 +3590,55 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                     }}
                   >
 
+                    {/* Mini 20px Battery Bar above head */}
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '-10px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '20px',
+                        height: '4px',
+                        background: 'rgba(0, 0, 0, 0.6)',
+                        border: '0.5px solid rgba(255, 255, 255, 0.2)',
+                        borderRadius: '2px',
+                        overflow: 'hidden',
+                        zIndex: 15,
+                        display: 'flex'
+                      }}
+                    >
+                      <div 
+                        style={{
+                          width: `${agent.battery}%`,
+                          height: '100%',
+                          backgroundColor: agent.battery > 50 
+                            ? '#10b981' 
+                            : agent.battery > 20 
+                              ? '#f59e0b' 
+                              : '#ef4444',
+                          transition: 'width 0.3s ease'
+                        }}
+                      />
+                    </div>
+
+                    {/* Floating lightning bolt for break charging */}
+                    {isCharging && (
+                      <div 
+                        style={{
+                          position: 'absolute',
+                          top: '-20px',
+                          right: '4px',
+                          fontSize: '0.75rem',
+                          color: '#10b981',
+                          textShadow: '0 0 6px #10b981',
+                          animation: 'badge-float 1.5s infinite ease-in-out',
+                          zIndex: 16
+                        }}
+                      >
+                        ⚡
+                      </div>
+                    )}
+
                     {/* Transparent Character Container */}
                     <div 
                       style={{ 
@@ -2974,8 +3648,11 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                         alignItems: 'center',
                         justifyContent: 'center',
                         position: 'relative',
-                        animation: isHighlighted ? 'badge-float 2s infinite ease-in-out' : 'none',
-                        transition: 'transform 0.2s'
+                        animation: isCharging ? 'charging-pulse 1s infinite alternate' : (isHighlighted ? 'badge-float 2s infinite ease-in-out' : 'none'),
+                        transition: 'transform 0.2s',
+                        borderRadius: '50%',
+                        border: isCharging ? '2px solid #10b981' : 'none',
+                        boxShadow: isCharging ? '0 0 10px #10b981, inset 0 0 8px rgba(16, 185, 129, 0.4)' : 'none',
                       }}
                     >
                       {/* Selection/Highlight glow under the feet */}
@@ -3452,13 +4129,148 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                   )}
                 </div>
 
+                {/* Step Mode Toggle and Next Turn Controls */}
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    gap: '10px', 
+                    background: 'rgba(255, 255, 255, 0.03)', 
+                    padding: '6px 12px', 
+                    borderRadius: '8px', 
+                    border: '1px solid rgba(251, 191, 36, 0.1)' 
+                  }} 
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <label 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px', 
+                      cursor: 'pointer', 
+                      fontSize: '0.75rem', 
+                      color: '#fbbf24' 
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input 
+                      type="checkbox"
+                      checked={isManualDebateStep}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        setIsManualDebateStep(e.target.checked);
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    <span>Step-by-Step Mode (Manual Turn)</span>
+                  </label>
+
+                  {isManualDebateStep && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (debateSpeakerIndex >= 0 && debateSpeakerIndex < activeVps.length) {
+                          setDebateSpeakerIndex(prev => prev + 1);
+                        }
+                      }}
+                      disabled={debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length}
+                      style={{
+                        background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.2), rgba(251, 191, 36, 0.2))',
+                        border: '1px solid rgba(251, 191, 36, 0.4)',
+                        color: '#fbbf24',
+                        padding: '4px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: (debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length) ? 'not-allowed' : 'pointer',
+                        opacity: (debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length) ? 0.5 : 1
+                      }}
+                    >
+                      Next Turn →
+                    </button>
+                  )}
+                </div>
+
+                {/* Moderator Directive Input */}
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    gap: '8px', 
+                    alignItems: 'center' 
+                  }} 
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <input 
+                    type="text"
+                    value={debateModeratorText}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      setDebateModeratorText(e.target.value);
+                    }}
+                    placeholder="Type moderator directive (e.g. Focus on enterprise custom features)..."
+                    disabled={boardroomState !== 'in_meeting' || debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length}
+                    style={{
+                      flex: 1,
+                      background: 'rgba(0, 0, 0, 0.3)',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      color: 'white',
+                      fontSize: '0.7rem',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!debateModeratorText.trim()) return;
+                      setLastModeratorInput(debateModeratorText);
+                      addLog(`👔 Moderator: Injected directive: "${debateModeratorText}"`);
+                      setDebateModeratorText('');
+                    }}
+                    disabled={!debateModeratorText.trim() || boardroomState !== 'in_meeting' || debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length}
+                    style={{
+                      background: 'linear-gradient(135deg, #2563eb, #3b82f6)',
+                      border: 'none',
+                      color: 'white',
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      cursor: (!debateModeratorText.trim() || boardroomState !== 'in_meeting' || debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length) ? 'not-allowed' : 'pointer',
+                      opacity: (!debateModeratorText.trim() || boardroomState !== 'in_meeting' || debateSpeakerIndex < 0 || debateSpeakerIndex >= activeVps.length) ? 0.5 : 1
+                    }}
+                  >
+                    Inject
+                  </button>
+                </div>
+
+                {lastModeratorInput && (
+                  <div 
+                    style={{ 
+                      fontSize: '0.65rem', 
+                      color: '#93c5fd', 
+                      background: 'rgba(59, 130, 246, 0.1)', 
+                      border: '1px solid rgba(59, 130, 246, 0.3)', 
+                      padding: '6px 10px', 
+                      borderRadius: '6px' 
+                    }} 
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <span style={{ fontWeight: 700 }}>Queued Moderator Directive:</span> "{lastModeratorInput}" (Will apply to the next speaker)
+                  </div>
+                )}
+
                 {/* Debate input seed form */}
                 <form 
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!debateTopic.trim()) return;
                     setDebateHistory([]);
-                    setDebateSpeakerIndex(0); // Start with CMO
+                    setDebateSpeakerIndex(0); // Start with first speaker
                   }} 
                   style={{ display: 'flex', gap: '10px' }}
                 >
@@ -3467,11 +4279,11 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                     value={debateTopic}
                     onChange={(e) => setDebateTopic(e.target.value)}
                     placeholder={
-                      debateSpeakerIndex >= 0 && debateSpeakerIndex < 5
+                      debateSpeakerIndex >= 0 && debateSpeakerIndex < activeVps.length
                         ? "Debate in progress... Please listen."
                         : "Seed debate topic (e.g. Raise prices by 15% to defend ARR)..."
                     }
-                    disabled={debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || boardroomState !== 'in_meeting'}
+                    disabled={debateSpeakerIndex >= 0 && debateSpeakerIndex < activeVps.length || boardroomState !== 'in_meeting'}
                     style={{
                       flex: 1,
                       background: 'rgba(0, 0, 0, 0.3)',
@@ -3485,7 +4297,7 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                   />
                   <button
                     type="submit"
-                    disabled={debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || !debateTopic.trim() || boardroomState !== 'in_meeting'}
+                    disabled={debateSpeakerIndex >= 0 && debateSpeakerIndex < activeVps.length || !debateTopic.trim() || boardroomState !== 'in_meeting' || activeVps.length === 0}
                     style={{
                       background: 'linear-gradient(135deg, #d97706, #fbbf24)',
                       border: 'none',
@@ -3494,8 +4306,8 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                       borderRadius: '10px',
                       fontSize: '0.75rem',
                       fontWeight: 700,
-                      cursor: (debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || !debateTopic.trim() || boardroomState !== 'in_meeting') ? 'not-allowed' : 'pointer',
-                      opacity: (debateSpeakerIndex >= 0 && debateSpeakerIndex < 5 || !debateTopic.trim() || boardroomState !== 'in_meeting') ? 0.5 : 1,
+                      cursor: (debateSpeakerIndex >= 0 && debateSpeakerIndex < activeVps.length || !debateTopic.trim() || boardroomState !== 'in_meeting' || activeVps.length === 0) ? 'not-allowed' : 'pointer',
+                      opacity: (debateSpeakerIndex >= 0 && debateSpeakerIndex < activeVps.length || !debateTopic.trim() || boardroomState !== 'in_meeting' || activeVps.length === 0) ? 0.5 : 1,
                       boxShadow: '0 2px 8px rgba(251, 191, 36, 0.25)'
                     }}
                   >
@@ -3533,6 +4345,64 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                       ⚙️ Reset desks
                     </button>
                   </div>
+                </div>
+
+                {/* VP Selection Checkboxes */}
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '12px', 
+                    flexWrap: 'wrap', 
+                    padding: '6px 10px', 
+                    background: 'rgba(255,255,255,0.02)', 
+                    borderRadius: '8px', 
+                    border: '1px solid rgba(255,255,255,0.04)',
+                    marginTop: '2px'
+                  }} 
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Sync Participants:</span>
+                  {[
+                    { id: 'cmo', label: 'CMO' },
+                    { id: 'vp_sales', label: 'VP Sales' },
+                    { id: 'vp_cs', label: 'VP CS' },
+                    { id: 'vp_pmm', label: 'VP PMM' },
+                    { id: 'vp_partnerships', label: 'VP Partner' },
+                    { id: 'critic', label: 'Critic' }
+                  ].map(vp => (
+                    <label 
+                      key={vp.id} 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '4px', 
+                        fontSize: '0.7rem', 
+                        color: 'white', 
+                        cursor: 'pointer' 
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input 
+                        type="checkbox"
+                        checked={selectedBoardroomVps.includes(vp.id)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          if (selectedBoardroomVps.includes(vp.id)) {
+                            if (selectedBoardroomVps.length > 1) {
+                              setSelectedBoardroomVps(prev => prev.filter(id => id !== vp.id));
+                            } else {
+                              addLog("⚠️ Warning: At least one VP must be selected for boardroom debate.");
+                            }
+                          } else {
+                            setSelectedBoardroomVps(prev => [...prev, vp.id]);
+                          }
+                        }}
+                        style={{ cursor: 'pointer' }}
+                      />
+                      <span>{vp.label}</span>
+                    </label>
+                  ))}
                 </div>
 
                 {/* Chat Messages Log */}
@@ -3735,7 +4605,7 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                             Inspect
                           </button>
                           {(() => {
-                            const isVp = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'].includes(agent.id);
+                            const isVp = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm', 'critic'].includes(agent.id);
                             const isBusyInBoardroom = isVp && boardroomState !== 'idle';
                             return (
                               <button
@@ -4018,10 +4888,70 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
                   Force Override Dispatch Task
                 </button>
 
+                {/* Custom Workstation Dispatch Panel (Option 1) */}
+                <div 
+                  onClick={(e) => e.stopPropagation()}
+                  style={{ 
+                    marginTop: '8px', 
+                    paddingTop: '12px', 
+                    borderTop: '1px solid rgba(255, 255, 255, 0.08)' 
+                  }}
+                >
+                  <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>
+                    Custom Workstation Dispatch
+                  </h4>
+                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. query database, copy specs..."
+                      value={customTaskInput}
+                      onChange={(e) => setCustomTaskInput(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        flex: 1,
+                        background: 'rgba(0,0,0,0.3)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        fontSize: '0.75rem',
+                        color: 'white',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Stop walk propagation
+                        if (customTaskInput.trim()) {
+                          handleCustomTaskDispatch(activeAgent.id, customTaskInput);
+                        }
+                      }}
+                      disabled={!customTaskInput.trim()}
+                      style={{
+                        background: 'linear-gradient(135deg, #10b981, #059669)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '8px 14px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        cursor: customTaskInput.trim() ? 'pointer' : 'not-allowed',
+                        opacity: customTaskInput.trim() ? 1 : 0.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Zap size={12} />
+                      Dispatch
+                    </button>
+                  </div>
+                </div>
+
                 {/* Call to Admin Cabin / Send Back Button & Chat */}
                 {(() => {
                   const isSummoned = (activeAgent.x === 3 && activeAgent.y === 12) || (activeAgent.path && activeAgent.path.length > 0 && activeAgent.path[activeAgent.path.length - 1].x === 3 && activeAgent.path[activeAgent.path.length - 1].y === 12);
-                  const isVp = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm'].includes(activeAgent.id);
+                  const isVp = ['cmo', 'vp_sales', 'vp_cs', 'vp_partnerships', 'vp_pmm', 'critic'].includes(activeAgent.id);
                   const isBusyInBoardroom = isVp && boardroomState !== 'idle';
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
@@ -4190,6 +5120,115 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
             )}
           </div>
 
+          {/* Strategy Feasibility Audit Dashboard (Option B) */}
+          <div 
+            style={{ 
+              background: 'rgba(30, 15, 20, 0.45)', 
+              backdropFilter: 'blur(16px)',
+              border: '1px solid rgba(239, 68, 68, 0.15)', 
+              borderRadius: '20px', 
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.4)',
+              transition: 'all 0.3s ease'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ef4444',
+                  boxShadow: '0 0 8px #ef4444'
+                }} />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px', color: '#fca5a5' }}>
+                  Strategy Feasibility Audit
+                </span>
+              </div>
+              <span style={{ fontSize: '0.6rem', color: '#f87171', background: 'rgba(239, 68, 68, 0.15)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.25)', fontWeight: 700 }}>
+                RED-TEAM
+              </span>
+            </div>
+
+            {redTeamAudit ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                  <span style={{ fontSize: '2rem', fontWeight: 800, color: '#ef4444', fontFamily: 'var(--font-sora)', textShadow: '0 0 15px rgba(239, 68, 68, 0.4)' }}>
+                    {redTeamAudit.score}%
+                  </span>
+                  <span style={{ fontSize: '0.7rem', color: '#fca5a5', fontWeight: 500 }}>
+                    Feasibility Score
+                  </span>
+                </div>
+
+                {/* Score progress bar */}
+                <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                  <div 
+                    style={{ 
+                      width: `${redTeamAudit.score}%`, 
+                      height: '100%', 
+                      background: 'linear-gradient(90deg, #b91c1c, #ef4444)', 
+                      boxShadow: '0 0 8px #ef4444',
+                      borderRadius: '3px',
+                      transition: 'width 0.8s ease-in-out'
+                    }} 
+                  />
+                </div>
+
+                <div style={{ height: '1px', background: 'rgba(239, 68, 68, 0.15)', margin: '4px 0' }} />
+
+                <div>
+                  <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fca5a5', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Critique
+                  </h4>
+                  <p style={{ fontSize: '0.75rem', color: '#fecaca', lineHeight: '1.4', marginTop: '4px', fontStyle: 'italic', borderLeft: '2px solid #ef4444', paddingLeft: '8px' }}>
+                    "{redTeamAudit.critique}"
+                  </p>
+                </div>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    exportAuditPlaybook();
+                  }}
+                  style={{
+                    width: '100%',
+                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                    border: 'none',
+                    color: 'white',
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 15px rgba(239, 68, 68, 0.25)',
+                    transition: 'all 0.2s',
+                    marginTop: '8px'
+                  }}
+                >
+                  <Download size={12} />
+                  Export Audit Playbook
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100px', color: '#fca5a5', textAlign: 'center', gap: '8px' }}>
+                <Users size={24} color="rgba(239, 68, 68, 0.15)" />
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#fca5a5' }}>Audit Console Offline</span>
+                <p style={{ fontSize: '0.65rem', color: '#f87171', opacity: 0.8, maxWidth: '180px', margin: 0 }}>
+                  Select the Critic Agent & seed a boardroom debate topic to run feasibility evaluation.
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Scrolling Activity Console Terminal with Glassmorphism */}
           <div 
             style={{ 
@@ -4296,6 +5335,11 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
           display: inline-block;
           margin-right: 4px;
         }
+        /* Charging glow pulse animation */
+        @keyframes charging-pulse {
+          0% { box-shadow: 0 0 4px #10b981, inset 0 0 4px rgba(16, 185, 129, 0.3); border-color: rgba(16, 185, 129, 0.6); }
+          100% { box-shadow: 0 0 14px #10b981, inset 0 0 8px rgba(16, 185, 129, 0.6); border-color: #10b981; }
+        }
         /* Click Ripple Keyframes in 2D plane */
         @keyframes click-ripple-anim {
           0% { transform: translate(-50%, -50%) scale(0.2); opacity: 0.8; }
@@ -4371,6 +5415,19 @@ Keep your response to exactly 1 or 2 concise, impactful sentences representing y
         }
         ::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Night Mode lamp-flicker Keyframes & Class */
+        @keyframes lamp-flicker {
+          0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.45)); }
+          45% { opacity: 0.85; }
+          50% { opacity: 0.6; filter: drop-shadow(0 0 1px rgba(251, 191, 36, 0.15)); }
+          55% { opacity: 0.95; filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.65)); }
+          60% { opacity: 0.8; }
+          90% { opacity: 0.9; }
+        }
+        .lamp-flickering {
+          animation: lamp-flicker 4s infinite alternate ease-in-out;
         }
       `}} />
     </div>
